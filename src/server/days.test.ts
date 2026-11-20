@@ -18,6 +18,7 @@ let restoreRedis: () => void
 const comments: string[] = []
 const submitComment = reddit.submitComment.bind(reddit)
 const setUserFlair = reddit.setUserFlair.bind(reddit)
+const removeUserFlair = reddit.removeUserFlair.bind(reddit)
 
 before(async () => {
   restoreRedis = installMemoryRedis(redis)
@@ -28,6 +29,9 @@ before(async () => {
   reddit.setUserFlair = (async (o: {text: string}) => {
     flairs.push(o.text)
   }) as unknown as typeof reddit.setUserFlair
+  reddit.removeUserFlair = (async (_sub: string, user: string) => {
+    flairs.push(`- ${user}`)
+  }) as unknown as typeof reddit.removeUserFlair
   reddit.submitCustomPost = (async (o: unknown) => {
     posts.push(o)
     return {id: `t3_p${posts.length}`}
@@ -57,6 +61,7 @@ after(async () => {
   restoreRedis()
   reddit.submitComment = submitComment
   reddit.setUserFlair = setUserFlair
+  reddit.removeUserFlair = removeUserFlair
   await new Promise<void>((resolve, reject) =>
     server.close(err => (err ? reject(err) : resolve())),
   )
@@ -145,5 +150,22 @@ test('streaks count consecutive days and reset after a gap', async () => {
   assert.deepEqual(seen, [1, 2, 3, 1])
   assert.equal(late.json.streak, 1)
   assert.equal(gone.json.streak, 0)
-  assert.deepEqual(flairs, ['✈ 2-day updraft', '✈ 3-day updraft'])
+  assert.deepEqual(
+    flairs.filter(f => f === '- eve' || f.startsWith('✈')),
+    ['- eve', '✈ 2-day updraft', '✈ 3-day updraft', '- eve'],
+  )
+})
+
+test('the daily cron clears flair once a streak lapses', async () => {
+  for (const day of ['2026-12-01', '2026-12-02']) {
+    at(`${day}T12:00:00Z`)
+    await fly('fay', day)
+  }
+  flairs.length = 0
+  at('2026-12-03T00:01:00Z')
+  await call<object>(Endpoint.OnDailyPost, {body: {}})
+  assert.deepEqual(flairs, [])
+  at('2026-12-04T00:01:00Z')
+  await call<object>(Endpoint.OnDailyPost, {body: {}})
+  assert.deepEqual(flairs, ['- fay'])
 })

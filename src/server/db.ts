@@ -112,6 +112,14 @@ export async function dbMarkFinished(
   return count
 }
 
+export async function dbMarkFlaired(user: string, day: DayKey): Promise<void> {
+  await redis.hSet(`flaired:${day}`, {[user]: '1'})
+}
+
+export async function dbFlaired(day: DayKey): Promise<string[]> {
+  return Object.keys(await redis.hGetAll(`flaired:${day}`))
+}
+
 export async function dbDayPost(day: DayKey): Promise<T3 | undefined> {
   return (await redis.get(dayPostKey(day))) as T3 | undefined
 }
