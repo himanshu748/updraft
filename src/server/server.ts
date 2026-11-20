@@ -38,6 +38,7 @@ import {
   dbMarkFinished,
   dbPlayers,
   dbRank,
+  dbReleaseDayPost,
   dbSaveRun,
   dbSetDayPost,
   dbSlowerThan,
@@ -237,13 +238,19 @@ async function ensureDayPost(day: DayKey): Promise<string> {
   if (!(await dbClaimDayPost(day)))
     throw Error(`${day} post is already being created`)
   const {course} = dailyCourse(day)
-  const post = await reddit.submitCustomPost({
-    title: `Updraft · ${prettyDay(day)} · ${course.name} (${course.theme.name})`,
-    postData: {day},
-    textFallback: {
-      text: 'Throw a paper plane through today’s wind course and race everyone’s ghosts.',
-    },
-  })
+  let post: Awaited<ReturnType<typeof reddit.submitCustomPost>>
+  try {
+    post = await reddit.submitCustomPost({
+      title: `Updraft · ${prettyDay(day)} · ${course.name} (${course.theme.name})`,
+      postData: {day},
+      textFallback: {
+        text: 'Throw a paper plane through today’s wind course and race everyone’s ghosts.',
+      },
+    })
+  } catch (err) {
+    await dbReleaseDayPost(day)
+    throw err
+  }
   await dbSetDayPost(day, post.id)
   return post.id
 }

@@ -120,6 +120,10 @@ export async function dbClaimDayPost(day: DayKey): Promise<boolean> {
   return (await redis.incrBy(`postlock:${day}`, 1)) === 1
 }
 
+export async function dbReleaseDayPost(day: DayKey): Promise<void> {
+  await redis.set(`postlock:${day}`, '0')
+}
+
 export async function dbSetDayPost(day: DayKey, t3: T3): Promise<void> {
   await redis.set(dayPostKey(day), t3)
 }
