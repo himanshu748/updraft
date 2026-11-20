@@ -275,7 +275,7 @@ function camera(): Camera {
   const targetY = Math.max(-30, Math.min(760 - viewH, flight.y - viewH * 0.5))
   camX += (targetX - camX) * (mode === 'aim' ? 1 : 0.2)
   camY += (Math.max(-30, targetY) - camY) * (mode === 'aim' ? 1 : 0.1)
-  return {x: camX, y: camY, scale, w, h}
+  return {x: camX, y: camY, scale, w, h, dpr: w / (canvas.clientWidth || w)}
 }
 
 function draw(now: number): void {

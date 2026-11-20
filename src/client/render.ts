@@ -14,6 +14,8 @@ export interface Camera {
   scale: number
   w: number
   h: number
+  /** Device pixels per CSS pixel, so name tags stay readable on phones. */
+  dpr: number
 }
 
 export interface PlaneSprite {
@@ -385,9 +387,10 @@ function drawLabels(
 ): void {
   const s = cam.scale
   const k = Math.max(0.6, s)
-  const size = Math.max(11, 13 * k)
-  const padX = 7
-  const h = size + 8
+  const u = cam.dpr
+  const size = Math.max(12 * u, 13 * k)
+  const padX = 7 * u
+  const h = size + 8 * u
   const taken: Box[] = []
   ctx.font = `700 ${size}px system-ui, sans-serif`
   ctx.textAlign = 'center'
@@ -397,7 +400,7 @@ function drawLabels(
     const x = (p.x - cam.x) * s
     const y = cam.h - (p.y - cam.y) * s
     if (x < -40 || x > cam.w + 40) continue
-    const w = ctx.measureText(p.label).width + padX * 2 + 10
+    const w = ctx.measureText(p.label).width + padX * 2 + 10 * u
     const spots = [y - 22 * k - h / 2, y + 20 * k + h / 2]
     const spot = spots
       .map(cy => ({
@@ -418,10 +421,10 @@ function drawLabels(
     ctx.globalAlpha = 1
     ctx.fillStyle = p.color
     ctx.beginPath()
-    ctx.arc(spot.x0 + padX + 3, cy, 3.5, 0, Math.PI * 2)
+    ctx.arc(spot.x0 + padX + 3 * u, cy, 3.5 * u, 0, Math.PI * 2)
     ctx.fill()
     ctx.fillStyle = '#fff'
-    ctx.fillText(p.label, x + 5, cy + 0.5)
+    ctx.fillText(p.label, x + 5 * u, cy + 0.5 * u)
   }
   ctx.textBaseline = 'alphabetic'
 }
