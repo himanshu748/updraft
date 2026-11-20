@@ -2,7 +2,7 @@ import {requestExpandedMode} from '@devvit/web/client'
 import type {DayRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {groundAt} from '../shared/course.ts'
-import {dayKey, formatTime, prettyDay} from '../shared/day.ts'
+import {dayKey, formatTime, prettyDay, untilNextDay} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
 import {fetchDay} from './fetch.ts'
 import {ghostColors} from './render.ts'
@@ -98,7 +98,14 @@ async function init(): Promise<void> {
     )
   if (info.me)
     parts.push(`your best ${formatTime(info.me.frames)} (#${info.me.rank})`)
-  if (info.streak > 1) parts.push(`🔥 ${info.streak}-day streak`)
+  const today = info.day === info.today
+  if (info.streak > 1)
+    parts.push(
+      today && !info.me
+        ? `🔥 ${info.streak}-day streak, fly today to keep it`
+        : `🔥 ${info.streak}-day streak`,
+    )
+  if (today && info.me) parts.push(`new course in ${untilNextDay()}`)
   stats.textContent = parts.join(' · ')
   if (info.me) startBtn.textContent = 'Beat your ghost'
   else if (info.day !== info.today) startBtn.textContent = 'Fly this course'
