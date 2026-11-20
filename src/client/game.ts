@@ -282,6 +282,7 @@ function draw(now: number): void {
   const cam = camera()
   const frame = mode === 'aim' ? Math.floor(now / (1000 / fps)) : flight.frame
   const planes: PlaneSprite[] = []
+  const labels: {x: number; y: number; w: number}[] = []
   for (const g of ghosts) {
     if (mode === 'aim') continue
     planes.push({
@@ -291,7 +292,7 @@ function draw(now: number): void {
       hy: g.flight.hy,
       color: g.color,
       alpha: 0.6,
-      label: g.label,
+      label: g.label && placeLabel(labels, cam, g) ? g.label : '',
       trail: g.trail,
     })
   }
@@ -310,6 +311,27 @@ function draw(now: number): void {
   if (mode === 'aim') drawAim(cam)
   const pct = flight.progress * 100
   hud.bar.style.setProperty('--p', `${pct}%`)
+}
+
+/** Ghosts bunch up after the throw; only label one that has room, so names don't pile into a smear. */
+function placeLabel(
+  placed: {x: number; y: number; w: number}[],
+  cam: Camera,
+  g: GhostFlight,
+): boolean {
+  const k = Math.max(0.6, cam.scale)
+  const x = (g.flight.x - cam.x) * cam.scale
+  const y = cam.h - (g.flight.y - cam.y) * cam.scale
+  const w = g.label.length * Math.max(11, 13 * k) * 0.6
+  const lineH = Math.max(11, 13 * k) * 1.3
+  if (
+    placed.some(
+      p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < lineH,
+    )
+  )
+    return false
+  placed.push({x, y, w})
+  return true
 }
 
 function drawAim(cam: Camera): void {
