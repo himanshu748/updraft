@@ -51,6 +51,7 @@ const hud = {
 }
 
 const sfx = new Sfx()
+const muteKey = 'updraft:muted'
 let day: DayKey = dayKey()
 let info: DayRsp | undefined
 let scene: Scene
@@ -146,7 +147,7 @@ function reset(): void {
   })
   mode = 'aim'
   hud.card.hidden = true
-  hud.hint.textContent = 'Drag back from the plane, let go to throw'
+  hud.hint.textContent = 'Drag back and let go, or press Space'
   hud.hint.hidden = false
   hud.time.textContent = formatTime(0)
 }
@@ -265,6 +266,9 @@ function showCard(rsp: RunRsp | undefined): void {
   renderShare()
   hud.login.hidden = loggedIn || !ok
   hud.card.hidden = false
+  setTimeout(() => {
+    if (mode === 'done') hud.again.focus({preventScroll: true})
+  }, 600)
 }
 
 function loop(now: number): void {
@@ -421,7 +425,9 @@ window.addEventListener('blur', () => {
   holding = false
 })
 window.addEventListener('resize', resize)
-hud.again.addEventListener('click', () => reset())
+hud.again.addEventListener('click', () => {
+  if (performance.now() - doneAt > 600) reset()
+})
 hud.login.addEventListener('click', () => {
   try {
     showLoginPrompt()
@@ -453,8 +459,16 @@ hud.share.addEventListener('click', async () => {
     renderShare()
   }
 })
+function setSound(on: boolean): void {
+  sfx.on = on
+  hud.mute.textContent = on ? '🔊' : '🔇'
+  hud.mute.setAttribute('aria-pressed', String(!on))
+  try {
+    localStorage.setItem(muteKey, on ? '0' : '1')
+  } catch {}
+}
 hud.mute.addEventListener('click', ev => {
-  hud.mute.textContent = sfx.toggle() ? '🔊' : '🔇'
+  setSound(!sfx.on)
   // A tapped (not keyboard-activated) mute button gives focus back so Space keeps flying.
   if (ev.detail > 0) hud.mute.blur()
 })
@@ -468,5 +482,8 @@ function toast(text: string): void {
   }
 }
 
+try {
+  if (localStorage.getItem(muteKey) === '1') setSound(false)
+} catch {}
 resize()
 void init()

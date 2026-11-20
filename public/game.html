@@ -19,15 +19,21 @@
       </div>
       <div class="right">
         <div id="par" class="sub"></div>
-        <button id="mute" type="button" class="icon" aria-label="Toggle sound">
+        <button
+          id="mute"
+          type="button"
+          class="icon"
+          aria-label="Mute sound"
+          aria-pressed="false"
+        >
           🔊
         </button>
       </div>
     </header>
     <div id="progress" class="progress"></div>
-    <div id="hint" class="hint"></div>
+    <div id="hint" class="hint" aria-live="polite"></div>
     <section id="card" class="card" hidden>
-      <div id="card-body"></div>
+      <div id="card-body" aria-live="polite"></div>
       <div class="actions">
         <button id="again" type="button" class="primary">Fly again</button>
         <button id="share" type="button">Comment my time</button>
