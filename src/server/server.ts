@@ -32,6 +32,8 @@ import {
   dbClaimDayPost,
   dbCountFlight,
   dbDayPost,
+  dbFlairDay,
+  dbFlaired,
   dbFlights,
   dbGhosts,
   dbInput,
@@ -41,6 +43,7 @@ import {
   dbReleaseDayPost,
   dbSaveRun,
   dbSetDayPost,
+  dbSetFlairDay,
   dbSetShare,
   dbShare,
   dbSlowerThan,
@@ -113,6 +116,7 @@ async function route(
       case Endpoint.OnAppInstall:
       case Endpoint.OnDailyPost:
         await ensureDayPost(dayKey())
+        if (endpoint === Endpoint.OnDailyPost) await clearLapsedFlair(dayKey())
         rsp = {}
         break
       default:
@@ -180,8 +184,11 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
   let streak = user ? await dbStreak(user, today) : 0
   if (finished && user) {
     improved = await dbSaveRun(day, user, result.frames, req.input)
-    if (day === today) streak = await dbMarkFinished(user, today)
-    if (improved) await maybeFlair(user, streak)
+    if (day === today) {
+      const before = streak
+      streak = await dbMarkFinished(user, today)
+      if (streak !== before || improved) await syncFlair(user, streak, today)
+    }
   }
   const players = await dbPlayers(day)
   const others =
@@ -205,17 +212,34 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
   }
 }
 
-async function maybeFlair(username: string, streak: number): Promise<void> {
-  if (streak < 2 || !context.subredditName) return
+async function syncFlair(
+  username: string,
+  streak: number,
+  today: DayKey,
+): Promise<void> {
+  const sub = context.subredditName
+  if (!sub) return
   try {
-    await reddit.setUserFlair({
-      subredditName: context.subredditName,
-      username,
-      text: `✈ ${streak}-day updraft`,
-    })
+    if (streak >= 2) {
+      await reddit.setUserFlair({
+        subredditName: sub,
+        username,
+        text: `✈ ${streak}-day updraft`,
+      })
+      await dbSetFlairDay(username, today)
+    } else if (await dbFlairDay(username)) {
+      await reddit.removeUserFlair(sub, username)
+      await dbSetFlairDay(username, '')
+    }
   } catch (err) {
     console.warn(`flair skipped; ${err}`)
   }
+}
+
+/** Streaks lapse at midnight without a request, so the daily cron clears their flair (retrying failures). */
+async function clearLapsedFlair(today: DayKey): Promise<void> {
+  for (const user of await dbFlaired())
+    if ((await dbStreak(user, today)) === 0) await syncFlair(user, 0, today)
 }
 
 async function routeShare(req: ShareReq): Promise<ShareRsp> {

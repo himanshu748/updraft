@@ -23,6 +23,7 @@ let restoreRedis: () => void
 let comments: string[] = []
 const submitComment = reddit.submitComment.bind(reddit)
 const setUserFlair = reddit.setUserFlair.bind(reddit)
+const removeUserFlair = reddit.removeUserFlair.bind(reddit)
 
 before(async () => {
   restoreRedis = installMemoryRedis(redis)
@@ -31,6 +32,7 @@ before(async () => {
     return {permalink: '/r/updraft/comments/abc/def/'}
   }) as unknown as typeof reddit.submitComment
   reddit.setUserFlair = async () => {}
+  reddit.removeUserFlair = async () => {}
   server = createServer(async (req, rsp) => {
     const username = req.headers['x-user'] as string | undefined
     const day = req.headers['x-day'] as string | undefined
@@ -56,6 +58,7 @@ after(async () => {
   restoreRedis()
   reddit.submitComment = submitComment
   reddit.setUserFlair = setUserFlair
+  reddit.removeUserFlair = removeUserFlair
   await new Promise<void>((resolve, reject) =>
     server.close(err => (err ? reject(err) : resolve())),
   )
