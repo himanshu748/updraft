@@ -34,9 +34,7 @@
     "reddit": {
       "enable": true,
       "scope": "user",
-      "asUser": [
-        "SUBMIT_COMMENT"
-      ]
+      "asUser": ["SUBMIT_COMMENT"]
     }
   },
   "scheduler": {
