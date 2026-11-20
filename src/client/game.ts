@@ -428,8 +428,8 @@ window.addEventListener('blur', () => {
 window.addEventListener('resize', resize)
 // A Space held through the crash would otherwise click the newly focused button on release.
 let againKeyDown = false
-hud.again.addEventListener('keydown', () => {
-  againKeyDown = true
+hud.again.addEventListener('keydown', ev => {
+  if (!ev.repeat) againKeyDown = true
 })
 hud.again.addEventListener('blur', () => {
   againKeyDown = false
