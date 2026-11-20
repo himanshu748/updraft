@@ -1,7 +1,13 @@
 import {showLoginPrompt, showToast} from '@devvit/web/client'
 import type {DayRsp, Ghost, RunRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
-import {type DayKey, dayKey, formatTime, prettyDay} from '../shared/day.ts'
+import {
+  type DayKey,
+  dayKey,
+  formatTime,
+  prettyDay,
+  untilNextDay,
+} from '../shared/day.ts'
 import {
   Flight,
   fps,
@@ -243,7 +249,17 @@ function showCard(rsp: RunRsp | undefined): void {
     lines.push(
       `<div class="dim">${flight.ringsTaken} boost ring${flight.ringsTaken > 1 ? 's' : ''}</div>`,
     )
-  if (rsp?.streak) lines.push(`<div>🔥 ${rsp.streak}-day streak</div>`)
+  const streak = rsp?.streak ?? 0
+  if (info && info.day === info.today) {
+    const flownToday = ok || Boolean(rsp?.best ?? info.me)
+    const next = `New course in ${untilNextDay()}`
+    if (!flownToday && streak)
+      lines.push(
+        `<div>🔥 Land a run today to keep your ${streak}-day streak</div>`,
+      )
+    else if (streak) lines.push(`<div>🔥 ${streak}-day streak · ${next}</div>`)
+    else if (flownToday) lines.push(`<div class="dim">${next}</div>`)
+  } else if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
   hud.cardBody.innerHTML = lines.join('')
   const loggedIn = Boolean(info?.username)
   hud.share.hidden = !loggedIn || !(rsp?.best ?? info?.me)

@@ -30,3 +30,12 @@ export function prettyDay(day: DayKey): string {
 export function formatTime(frames: number): string {
   return `${(frames / 60).toFixed(2)}s`
 }
+
+/** Time left until the next UTC day's course, as "7h 05m" or "12m". */
+export function untilNextDay(now: Date = new Date()): string {
+  const next = Date.parse(`${addDays(dayKey(now), 1)}T00:00:00Z`)
+  const mins = Math.max(1, Math.ceil((next - now.getTime()) / 60_000))
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
+}
