@@ -207,6 +207,7 @@ async function finish(): Promise<void> {
     sfx.crash()
     navigator.vibrate?.([30, 40, 30])
   }
+  const run = flight
   let rsp: RunRsp | undefined
   try {
     rsp = await postRun({day, input})
@@ -214,7 +215,8 @@ async function finish(): Promise<void> {
     console.warn(`run not saved; ${err}`)
   }
   if (rsp?.improved && info) info.myComment = null
-  showCard(rsp)
+  // The player may have restarted (Space) while the run was saving.
+  if (flight === run) showCard(rsp)
   try {
     info = await fetchDay()
     renderPar()
