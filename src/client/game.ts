@@ -1,4 +1,4 @@
-import {showLoginPrompt, showToast} from '@devvit/web/client'
+import {navigateTo, showLoginPrompt, showToast} from '@devvit/web/client'
 import type {DayRsp, Ghost, RunRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {type DayKey, dayKey, formatTime, prettyDay} from '../shared/day.ts'
@@ -206,12 +206,20 @@ async function finish(): Promise<void> {
   } catch (err) {
     console.warn(`run not saved; ${err}`)
   }
+  if (rsp?.improved && info) info.myComment = null
   showCard(rsp)
   try {
     info = await fetchDay()
     renderPar()
     renderBoard()
+    renderShare()
   } catch {}
+}
+
+function renderShare(): void {
+  hud.share.textContent = info?.myComment
+    ? 'View my comment'
+    : 'Comment my time'
 }
 
 function showCard(rsp: RunRsp | undefined): void {
@@ -247,6 +255,7 @@ function showCard(rsp: RunRsp | undefined): void {
   hud.cardBody.innerHTML = lines.join('')
   const loggedIn = Boolean(info?.username)
   hud.share.hidden = !loggedIn || !(rsp?.best ?? info?.me)
+  renderShare()
   hud.login.hidden = loggedIn || !ok
   hud.card.hidden = false
 }
@@ -412,14 +421,29 @@ hud.login.addEventListener('click', () => {
   } catch {}
 })
 hud.share.addEventListener('click', async () => {
+  const url = info?.myComment
+  if (url) {
+    try {
+      navigateTo(url)
+    } catch {
+      window.open(url, '_blank')
+    }
+    return
+  }
   hud.share.disabled = true
   try {
-    await postShare({day})
-    toast('Posted your time in the comments')
+    const rsp = await postShare({day})
+    if (info) info.myComment = rsp.commentUrl
+    toast(
+      rsp.existing
+        ? 'You already commented this time'
+        : 'Posted your time in the comments',
+    )
   } catch (err) {
     toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
   } finally {
     hud.share.disabled = false
+    renderShare()
   }
 })
 hud.mute.addEventListener('click', ev => {

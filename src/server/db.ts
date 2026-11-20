@@ -9,6 +9,7 @@ const runsKey = (day: DayKey): string => `runs:${day}`
 const flightsKey = (day: DayKey): string => `flights:${day}`
 const streakKey = (user: string): string => `streak:${user}`
 const dayPostKey = (day: DayKey): string => `post:${day}`
+const sharesKey = (day: DayKey): string => `shares:${day}`
 
 export async function dbBest(
   day: DayKey,
@@ -126,4 +127,26 @@ export async function dbReleaseDayPost(day: DayKey): Promise<void> {
 
 export async function dbSetDayPost(day: DayKey, t3: T3): Promise<void> {
   await redis.set(dayPostKey(day), t3)
+}
+
+export type Share = {frames: number; url: string}
+
+/** The comment a user last posted about their time on `day`. */
+export async function dbShare(
+  day: DayKey,
+  user: string,
+): Promise<Share | undefined> {
+  const json = await redis.hGet(sharesKey(day), user)
+  return json ? (JSON.parse(json) as Share) : undefined
+}
+
+/** Records `share` unless a comment for a faster time is already stored. */
+export async function dbSetShare(
+  day: DayKey,
+  user: string,
+  share: Share,
+): Promise<void> {
+  const prev = await dbShare(day, user)
+  if (prev && prev.frames < share.frames) return
+  await redis.hSet(sharesKey(day), {[user]: JSON.stringify(share)})
 }
