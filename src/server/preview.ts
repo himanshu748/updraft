@@ -3,7 +3,7 @@
 import {readFile} from 'node:fs/promises'
 import {createServer} from 'node:http'
 import {extname, join} from 'node:path'
-import {type Context, redis, runWithContext} from '@devvit/web/server'
+import {type Context, reddit, redis, runWithContext} from '@devvit/web/server'
 import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {dayKey} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
@@ -12,6 +12,11 @@ import {installMemoryRedis} from './memoryRedis.ts'
 import {onReq} from './server.ts'
 
 installMemoryRedis(redis)
+let comments = 0
+reddit.submitComment = (async (opts: {text: string}) => {
+  console.log(`comment #${++comments}: ${opts.text}`)
+  return {permalink: `/r/updraft_dev/comments/preview/updraft/c${comments}/`}
+}) as unknown as typeof reddit.submitComment
 const port = Number(process.env.PORT ?? 5180)
 const publicDir = join(import.meta.dirname, '../../public')
 const types: Record<string, string> = {

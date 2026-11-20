@@ -155,12 +155,17 @@ export class Scene {
       if (x1 < 0 || x0 > cam.w) continue
       const y0 = sy(w.y1)
       const y1 = sy(w.y0)
-      ctx.fillStyle =
-        w.wx > 0 ? 'rgba(120,255,200,0.14)' : 'rgba(255,110,140,0.14)'
+      const tail = w.wx > 0
+      const dir = Math.sign(w.wx)
+      ctx.fillStyle = tail ? 'rgba(90,255,190,0.24)' : 'rgba(255,60,90,0.3)'
       roundRect(ctx, x0, y0, x1 - x0, y1 - y0, 18 * s)
       ctx.fill()
-      ctx.strokeStyle =
-        w.wx > 0 ? 'rgba(255,255,255,0.75)' : 'rgba(255,230,235,0.8)'
+      ctx.setLineDash([10 * s, 8 * s])
+      ctx.strokeStyle = tail ? 'rgba(200,255,235,0.7)' : 'rgba(255,90,110,0.75)'
+      ctx.lineWidth = Math.max(1.5, 2.5 * s)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.strokeStyle = tail ? 'rgba(255,255,255,0.8)' : 'rgba(255,235,238,0.9)'
       ctx.lineWidth = Math.max(1, 2 * s)
       const len = w.x1 - w.x0
       for (let i = 0; i < 9; i++) {
@@ -169,10 +174,23 @@ export class Scene {
         const ax = sx(w.x0 + off)
         const ay = sy(lane)
         ctx.beginPath()
-        ctx.moveTo(ax, ay)
-        ctx.lineTo(ax - Math.sign(w.wx) * 34 * s, ay)
+        ctx.moveTo(ax - dir * 34 * s, ay)
+        ctx.lineTo(ax, ay)
+        ctx.moveTo(ax - dir * 8 * s, ay - 6 * s)
+        ctx.lineTo(ax, ay)
+        ctx.lineTo(ax - dir * 8 * s, ay + 6 * s)
         ctx.stroke()
       }
+      const size = Math.max(14, 22 * s)
+      ctx.font = `800 ${size}px system-ui, sans-serif`
+      ctx.textAlign = 'left'
+      ctx.fillStyle = tail ? 'rgba(255,255,255,0.9)' : 'rgba(255,240,242,0.95)'
+      const text = tail ? 'TAILWIND →' : '← HEADWIND'
+      const tx = Math.min(
+        Math.max(x0 + 12 * s, 12 * s),
+        x1 - ctx.measureText(text).width - 12 * s,
+      )
+      ctx.fillText(text, tx, y0 + size + 8 * s)
     }
 
     // rings
@@ -292,6 +310,7 @@ export class Scene {
     ctx.fill()
 
     for (const p of planes) drawPlane(ctx, cam, p)
+    drawLabels(ctx, cam, planes)
   }
 
   private hills(
@@ -366,15 +385,67 @@ export function drawPlane(
   ctx.closePath()
   ctx.fill()
   ctx.restore()
-  if (p.label) {
-    ctx.font = `700 ${Math.max(11, 13 * k)}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'
-    ctx.fillText(p.label, x + 1, y - 18 * k + 1)
-    ctx.fillStyle = '#fff'
-    ctx.fillText(p.label, x, y - 18 * k)
-  }
   ctx.globalAlpha = 1
+}
+
+interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/** Ghost name tags on dark pills, skipping any that would overlap one already drawn. */
+function drawLabels(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera,
+  planes: readonly PlaneSprite[],
+): void {
+  const s = cam.scale
+  const k = Math.max(0.6, s)
+  const size = Math.max(11, 13 * k)
+  const padX = 7
+  const h = size + 8
+  const taken: Box[] = []
+  ctx.font = `700 ${size}px system-ui, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const p of planes) {
+    if (!p.label) continue
+    const x = (p.x - cam.x) * s
+    const y = cam.h - (p.y - cam.y) * s
+    if (x < -40 || x > cam.w + 40) continue
+    const w = ctx.measureText(p.label).width + padX * 2 + 10
+    const spots = [y - 22 * k - h / 2, y + 20 * k + h / 2]
+    const spot = spots
+      .map(cy => ({
+        x0: x - w / 2,
+        y0: cy - h / 2,
+        x1: x + w / 2,
+        y1: cy + h / 2,
+      }))
+      .find(b => !taken.some(t => overlaps(t, b)))
+    if (!spot) continue
+    taken.push(spot)
+    const cy = (spot.y0 + spot.y1) / 2
+    ctx.globalAlpha = 0.85
+    ctx.fillStyle = 'rgba(15,22,44,0.72)'
+    ctx.beginPath()
+    ctx.roundRect(spot.x0, spot.y0, w, h, h / 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
+    ctx.fillStyle = p.color
+    ctx.beginPath()
+    ctx.arc(spot.x0 + padX + 3, cy, 3.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#fff'
+    ctx.fillText(p.label, x + 5, cy + 0.5)
+  }
+  ctx.textBaseline = 'alphabetic'
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 }
 
 function roundRect(

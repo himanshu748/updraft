@@ -41,6 +41,8 @@ import {
   dbReleaseDayPost,
   dbSaveRun,
   dbSetDayPost,
+  dbSetShare,
+  dbShare,
   dbSlowerThan,
   dbStreak,
 } from './db.ts'
@@ -139,11 +141,15 @@ async function routeDay(): Promise<DayRsp> {
   const board = await dbBoard(day, ghostCount)
   const ghosts = await dbGhosts(day, board)
   let me: DayRsp['me'] = null
+  let myComment: string | null = null
   if (user) {
     const frames = await dbBest(day, user)
     const input = frames === undefined ? undefined : await dbInput(day, user)
     const rank = await dbRank(day, user)
     if (frames !== undefined && input && rank) me = {frames, rank, input}
+    const share = await dbShare(day, user)
+    if (share && frames !== undefined && share.frames <= frames)
+      myComment = share.url
   }
   return {
     day,
@@ -155,6 +161,7 @@ async function routeDay(): Promise<DayRsp> {
     board: board.slice(0, 10),
     ghosts,
     me,
+    myComment,
     streak: user ? await dbStreak(user, today) : 0,
   }
 }
@@ -221,6 +228,8 @@ async function routeShare(req: ShareReq): Promise<ShareRsp> {
   const rank = await dbRank(day, user)
   if (best === undefined || !rank)
     throw new HttpError(400, 'finish a flight first')
+  const prev = await dbShare(day, user)
+  if (prev && prev.frames <= best) return {commentUrl: prev.url, existing: true}
   const {par} = dailyCourse(day)
   const medal = medalFor(best, par)
   const badge = {gold: '🥇', silver: '🥈', bronze: '🥉', none: '✈️'}[medal]
@@ -229,7 +238,9 @@ async function routeShare(req: ShareReq): Promise<ShareRsp> {
     text: `${badge} Flew ${prettyDay(day)}'s Updraft in **${formatTime(best)}**, #${rank} of ${await dbPlayers(day)}. Catch my ghost!`,
     runAs: 'USER',
   })
-  return {commentUrl: comment.permalink}
+  const url = new URL(comment.permalink, 'https://www.reddit.com/').toString()
+  await dbSetShare(day, user, {frames: best, url})
+  return {commentUrl: url, existing: false}
 }
 
 async function ensureDayPost(day: DayKey): Promise<string> {

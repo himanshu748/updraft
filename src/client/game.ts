@@ -1,4 +1,4 @@
-import {showLoginPrompt, showToast} from '@devvit/web/client'
+import {navigateTo, showLoginPrompt, showToast} from '@devvit/web/client'
 import type {DayRsp, Ghost, RunRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {
@@ -92,8 +92,15 @@ async function init(): Promise<void> {
 
 function renderPar(): void {
   const {par} = dailyCourse(day)
-  const best = info?.me ? ` · best ${formatTime(info.me.frames)}` : ''
-  hud.par.textContent = `🥇 ${formatTime(par.gold)}${best}`
+  const lines = [`🥇 par ${formatTime(par.gold)}`]
+  if (info?.me) lines.push(`best ${formatTime(info.me.frames)}`)
+  hud.par.replaceChildren(
+    ...lines.map(text => {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div
+    }),
+  )
 }
 
 function renderBoard(): void {
@@ -212,12 +219,20 @@ async function finish(): Promise<void> {
   } catch (err) {
     console.warn(`run not saved; ${err}`)
   }
+  if (rsp?.improved && info) info.myComment = null
   showCard(rsp)
   try {
     info = await fetchDay()
     renderPar()
     renderBoard()
+    renderShare()
   } catch {}
+}
+
+function renderShare(): void {
+  hud.share.textContent = info?.myComment
+    ? 'View my comment'
+    : 'Comment my time'
 }
 
 function showCard(rsp: RunRsp | undefined): void {
@@ -265,6 +280,7 @@ function showCard(rsp: RunRsp | undefined): void {
   hud.cardBody.innerHTML = lines.join('')
   const loggedIn = Boolean(info?.username)
   hud.share.hidden = !loggedIn || !(rsp?.best ?? info?.me)
+  renderShare()
   hud.login.hidden = loggedIn || !ok
   hud.card.hidden = false
 }
@@ -419,6 +435,9 @@ window.addEventListener('keydown', ev => {
 window.addEventListener('keyup', ev => {
   if (ev.code === 'Space' || ev.code === 'ArrowUp') holding = false
 })
+window.addEventListener('blur', () => {
+  holding = false
+})
 window.addEventListener('resize', resize)
 hud.again.addEventListener('click', () => reset())
 hud.login.addEventListener('click', () => {
@@ -427,18 +446,35 @@ hud.login.addEventListener('click', () => {
   } catch {}
 })
 hud.share.addEventListener('click', async () => {
+  const url = info?.myComment
+  if (url) {
+    try {
+      navigateTo(url)
+    } catch {
+      window.open(url, '_blank')
+    }
+    return
+  }
   hud.share.disabled = true
   try {
-    await postShare({day})
-    toast('Posted your time in the comments')
+    const rsp = await postShare({day})
+    if (info) info.myComment = rsp.commentUrl
+    toast(
+      rsp.existing
+        ? 'You already commented this time'
+        : 'Posted your time in the comments',
+    )
   } catch (err) {
     toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
   } finally {
     hud.share.disabled = false
+    renderShare()
   }
 })
-hud.mute.addEventListener('click', () => {
+hud.mute.addEventListener('click', ev => {
   hud.mute.textContent = sfx.toggle() ? '🔊' : '🔇'
+  // A tapped (not keyboard-activated) mute button gives focus back so Space keeps flying.
+  if (ev.detail > 0) hud.mute.blur()
 })
 
 function toast(text: string): void {

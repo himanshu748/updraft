@@ -59,10 +59,20 @@ button.icon {
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
+.hud > :first-child {
+  min-width: 0;
+}
 .hud .right {
   display: flex;
+  flex: none;
   gap: 8px;
   align-items: center;
+  text-align: right;
+}
+#course-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hud button {
   pointer-events: auto;
@@ -107,7 +117,9 @@ button.icon {
   border-radius: 999px;
   font-weight: 700;
   font-size: 15px;
-  white-space: nowrap;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  text-align: center;
   pointer-events: none;
 }
 .card[hidden],
@@ -210,6 +222,16 @@ button[hidden] {
 }
 .splash main button {
   pointer-events: auto;
+}
+.plate {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: min(92vw, 30em);
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: rgba(14, 22, 44, 0.55);
+  backdrop-filter: blur(6px);
 }
 .brand {
   font-size: 15px;
