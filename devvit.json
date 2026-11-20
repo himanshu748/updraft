@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "updraft",
+  "name": "updraft-daily",
   "post": {
     "entrypoints": {
       "default": {
