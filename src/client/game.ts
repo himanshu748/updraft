@@ -426,8 +426,18 @@ window.addEventListener('blur', () => {
   holding = false
 })
 window.addEventListener('resize', resize)
-hud.again.addEventListener('click', () => {
-  if (performance.now() - doneAt > 600) reset()
+// A Space held through the crash would otherwise click the newly focused button on release.
+let againKeyDown = false
+hud.again.addEventListener('keydown', () => {
+  againKeyDown = true
+})
+hud.again.addEventListener('blur', () => {
+  againKeyDown = false
+})
+hud.again.addEventListener('click', ev => {
+  const pressed = ev.detail > 0 || againKeyDown
+  againKeyDown = false
+  if (pressed && performance.now() - doneAt > 600) reset()
 })
 hud.login.addEventListener('click', () => {
   try {
