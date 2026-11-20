@@ -107,7 +107,9 @@ button.icon {
   border-radius: 999px;
   font-weight: 700;
   font-size: 15px;
-  white-space: nowrap;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  text-align: center;
   pointer-events: none;
 }
 .card[hidden],
