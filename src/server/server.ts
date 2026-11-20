@@ -187,7 +187,7 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
     if (day === today) {
       const before = streak
       streak = await dbMarkFinished(user, today)
-      if (streak !== before) await syncFlair(user, streak, today)
+      if (streak !== before || improved) await syncFlair(user, streak, today)
     }
   }
   const players = await dbPlayers(day)
