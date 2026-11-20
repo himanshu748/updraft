@@ -59,10 +59,20 @@ button.icon {
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
+.hud > :first-child {
+  min-width: 0;
+}
 .hud .right {
   display: flex;
+  flex: none;
   gap: 8px;
   align-items: center;
+  text-align: right;
+}
+#course-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hud button {
   pointer-events: auto;
