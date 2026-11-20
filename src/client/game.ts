@@ -86,8 +86,15 @@ async function init(): Promise<void> {
 
 function renderPar(): void {
   const {par} = dailyCourse(day)
-  const best = info?.me ? ` · best ${formatTime(info.me.frames)}` : ''
-  hud.par.textContent = `🥇 ${formatTime(par.gold)}${best}`
+  const lines = [`🥇 par ${formatTime(par.gold)}`]
+  if (info?.me) lines.push(`best ${formatTime(info.me.frames)}`)
+  hud.par.replaceChildren(
+    ...lines.map(text => {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div
+    }),
+  )
 }
 
 function renderBoard(): void {
