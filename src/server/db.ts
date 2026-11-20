@@ -140,10 +140,13 @@ export async function dbShare(
   return json ? (JSON.parse(json) as Share) : undefined
 }
 
+/** Records `share` unless a comment for a faster time is already stored. */
 export async function dbSetShare(
   day: DayKey,
   user: string,
   share: Share,
 ): Promise<void> {
+  const prev = await dbShare(day, user)
+  if (prev && prev.frames < share.frames) return
   await redis.hSet(sharesKey(day), {[user]: JSON.stringify(share)})
 }
