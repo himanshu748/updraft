@@ -257,8 +257,10 @@ function showCard(rsp: RunRsp | undefined): void {
       lines.push(
         `<div>🔥 Land a run today to keep your ${streak}-day streak</div>`,
       )
-    else if (streak) lines.push(`<div>🔥 ${streak}-day streak · ${next}</div>`)
-    else if (flownToday) lines.push(`<div class="dim">${next}</div>`)
+    else {
+      if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
+      if (flownToday) lines.push(`<div class="dim">${next}</div>`)
+    }
   } else if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
   hud.cardBody.innerHTML = lines.join('')
   const loggedIn = Boolean(info?.username)
