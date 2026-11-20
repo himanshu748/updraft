@@ -387,9 +387,10 @@ canvas.addEventListener('pointermove', ev => move(ev.clientX, ev.clientY))
 canvas.addEventListener('pointerup', () => release())
 canvas.addEventListener('pointercancel', () => release())
 window.addEventListener('keydown', ev => {
-  if (ev.repeat) return
+  if (ev.repeat || ev.target instanceof HTMLButtonElement) return
   if (ev.code === 'Space' || ev.code === 'ArrowUp') {
     ev.preventDefault()
+    sfx.unlock()
     if (mode === 'aim') {
       aim = {lx: -95, ly: 35}
       launch()
