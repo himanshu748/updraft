@@ -34,7 +34,9 @@
     "reddit": {
       "enable": true,
       "scope": "user",
-      "asUser": ["SUBMIT_COMMENT"]
+      "asUser": [
+        "SUBMIT_COMMENT"
+      ]
     }
   },
   "scheduler": {
@@ -44,5 +46,8 @@
         "cron": "1 0 * * *"
       }
     }
+  },
+  "dev": {
+    "subreddit": "updraft_daily_dev"
   }
 }
