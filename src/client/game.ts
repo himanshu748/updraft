@@ -401,6 +401,9 @@ window.addEventListener('keydown', ev => {
 window.addEventListener('keyup', ev => {
   if (ev.code === 'Space' || ev.code === 'ArrowUp') holding = false
 })
+window.addEventListener('blur', () => {
+  holding = false
+})
 window.addEventListener('resize', resize)
 hud.again.addEventListener('click', () => reset())
 hud.login.addEventListener('click', () => {
@@ -419,8 +422,10 @@ hud.share.addEventListener('click', async () => {
     hud.share.disabled = false
   }
 })
-hud.mute.addEventListener('click', () => {
+hud.mute.addEventListener('click', ev => {
   hud.mute.textContent = sfx.toggle() ? '🔊' : '🔇'
+  // A tapped (not keyboard-activated) mute button gives focus back so Space keeps flying.
+  if (ev.detail > 0) hud.mute.blur()
 })
 
 function toast(text: string): void {
