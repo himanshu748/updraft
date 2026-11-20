@@ -19,7 +19,6 @@ import {
 } from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {
-  addDays,
   type DayKey,
   dayKey,
   formatTime,
@@ -33,17 +32,18 @@ import {
   dbClaimDayPost,
   dbCountFlight,
   dbDayPost,
+  dbFlairDay,
   dbFlaired,
   dbFlights,
   dbGhosts,
   dbInput,
   dbMarkFinished,
-  dbMarkFlaired,
   dbPlayers,
   dbRank,
   dbReleaseDayPost,
   dbSaveRun,
   dbSetDayPost,
+  dbSetFlairDay,
   dbSetShare,
   dbShare,
   dbSlowerThan,
@@ -226,16 +226,19 @@ async function syncFlair(
         username,
         text: `✈ ${streak}-day updraft`,
       })
-      await dbMarkFlaired(username, today)
-    } else await reddit.removeUserFlair(sub, username)
+      await dbSetFlairDay(username, today)
+    } else if (await dbFlairDay(username)) {
+      await reddit.removeUserFlair(sub, username)
+      await dbSetFlairDay(username, '')
+    }
   } catch (err) {
     console.warn(`flair skipped; ${err}`)
   }
 }
 
-/** Streaks lapse at midnight without a request, so the daily cron clears their flair. */
+/** Streaks lapse at midnight without a request, so the daily cron clears their flair (retrying failures). */
 async function clearLapsedFlair(today: DayKey): Promise<void> {
-  for (const user of await dbFlaired(addDays(today, -2)))
+  for (const user of await dbFlaired())
     if ((await dbStreak(user, today)) === 0) await syncFlair(user, 0, today)
 }
 

@@ -152,7 +152,7 @@ test('streaks count consecutive days and reset after a gap', async () => {
   assert.equal(gone.json.streak, 0)
   assert.deepEqual(
     flairs.filter(f => f === '- eve' || f.startsWith('✈')),
-    ['- eve', '✈ 2-day updraft', '✈ 3-day updraft', '- eve'],
+    ['✈ 2-day updraft', '✈ 3-day updraft', '- eve'],
   )
 })
 

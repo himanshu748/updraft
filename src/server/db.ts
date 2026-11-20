@@ -112,12 +112,23 @@ export async function dbMarkFinished(
   return count
 }
 
-export async function dbMarkFlaired(user: string, day: DayKey): Promise<void> {
-  await redis.hSet(`flaired:${day}`, {[user]: '1'})
+/** Users wearing Updraft's streak flair, with the day it was last set ('' once removed). */
+const flairKey = 'flair'
+
+export async function dbSetFlairDay(
+  user: string,
+  day: DayKey | '',
+): Promise<void> {
+  await redis.hSet(flairKey, {[user]: day})
 }
 
-export async function dbFlaired(day: DayKey): Promise<string[]> {
-  return Object.keys(await redis.hGetAll(`flaired:${day}`))
+export async function dbFlairDay(user: string): Promise<string | undefined> {
+  return (await redis.hGet(flairKey, user)) || undefined
+}
+
+export async function dbFlaired(): Promise<string[]> {
+  const all = await redis.hGetAll(flairKey)
+  return Object.keys(all).filter(user => all[user])
 }
 
 export async function dbDayPost(day: DayKey): Promise<T3 | undefined> {
