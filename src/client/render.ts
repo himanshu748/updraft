@@ -292,6 +292,7 @@ export class Scene {
     ctx.fill()
 
     for (const p of planes) drawPlane(ctx, cam, p)
+    drawLabels(ctx, cam, planes)
   }
 
   private hills(
@@ -366,15 +367,67 @@ export function drawPlane(
   ctx.closePath()
   ctx.fill()
   ctx.restore()
-  if (p.label) {
-    ctx.font = `700 ${Math.max(11, 13 * k)}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'
-    ctx.fillText(p.label, x + 1, y - 18 * k + 1)
-    ctx.fillStyle = '#fff'
-    ctx.fillText(p.label, x, y - 18 * k)
-  }
   ctx.globalAlpha = 1
+}
+
+interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/** Ghost name tags on dark pills, skipping any that would overlap one already drawn. */
+function drawLabels(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera,
+  planes: readonly PlaneSprite[],
+): void {
+  const s = cam.scale
+  const k = Math.max(0.6, s)
+  const size = Math.max(11, 13 * k)
+  const padX = 7
+  const h = size + 8
+  const taken: Box[] = []
+  ctx.font = `700 ${size}px system-ui, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const p of planes) {
+    if (!p.label) continue
+    const x = (p.x - cam.x) * s
+    const y = cam.h - (p.y - cam.y) * s
+    if (x < -40 || x > cam.w + 40) continue
+    const w = ctx.measureText(p.label).width + padX * 2 + 10
+    const spots = [y - 22 * k - h / 2, y + 20 * k + h / 2]
+    const spot = spots
+      .map(cy => ({
+        x0: x - w / 2,
+        y0: cy - h / 2,
+        x1: x + w / 2,
+        y1: cy + h / 2,
+      }))
+      .find(b => !taken.some(t => overlaps(t, b)))
+    if (!spot) continue
+    taken.push(spot)
+    const cy = (spot.y0 + spot.y1) / 2
+    ctx.globalAlpha = 0.85
+    ctx.fillStyle = 'rgba(15,22,44,0.72)'
+    ctx.beginPath()
+    ctx.roundRect(spot.x0, spot.y0, w, h, h / 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
+    ctx.fillStyle = p.color
+    ctx.beginPath()
+    ctx.arc(spot.x0 + padX + 3, cy, 3.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#fff'
+    ctx.fillText(p.label, x + 5, cy + 0.5)
+  }
+  ctx.textBaseline = 'alphabetic'
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 }
 
 function roundRect(
