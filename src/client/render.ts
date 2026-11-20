@@ -14,6 +14,8 @@ export interface Camera {
   scale: number
   w: number
   h: number
+  /** Device pixels per CSS pixel, so text stays readable on phones. */
+  dpr: number
 }
 
 export interface PlaneSprite {
@@ -291,7 +293,13 @@ export class Scene {
     ctx.lineTo(lx, sy(350))
     ctx.fill()
 
-    for (const p of planes) drawPlane(ctx, cam, p)
+    const placed: Box[] = []
+    for (const p of planes) {
+      const box = p.label ? labelBox(ctx, cam, p, p.label) : undefined
+      const clear = box && !placed.some(b => overlaps(b, box))
+      if (box && clear) placed.push(box)
+      drawPlane(ctx, cam, clear ? p : {...p, label: undefined})
+    }
   }
 
   private hills(
@@ -320,6 +328,38 @@ export class Scene {
     ctx.lineTo(cam.w, cam.h)
     ctx.fill()
   }
+}
+
+interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+const labelSize = (cam: Camera): number =>
+  Math.max(12 * cam.dpr, 13 * Math.max(0.6, cam.scale))
+const labelFont = (cam: Camera): string =>
+  `700 ${labelSize(cam)}px system-ui, sans-serif`
+
+/** Screen box of a plane's label, so stacked ghosts don't print names over each other. */
+function labelBox(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera,
+  p: PlaneSprite,
+  label: string,
+): Box {
+  const k = Math.max(0.6, cam.scale)
+  ctx.font = labelFont(cam)
+  const half = ctx.measureText(label).width / 2 + 4
+  const x = (p.x - cam.x) * cam.scale
+  const y = cam.h - (p.y - cam.y) * cam.scale - 18 * k
+  const size = labelSize(cam)
+  return {x0: x - half, x1: x + half, y0: y - size, y1: y + 4}
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 }
 
 export function drawPlane(
@@ -367,10 +407,13 @@ export function drawPlane(
   ctx.fill()
   ctx.restore()
   if (p.label) {
-    ctx.font = `700 ${Math.max(11, 13 * k)}px system-ui, sans-serif`
+    ctx.globalAlpha = 0.95
+    ctx.font = labelFont(cam)
     ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'
-    ctx.fillText(p.label, x + 1, y - 18 * k + 1)
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 3 * cam.dpr
+    ctx.strokeStyle = 'rgba(20,28,52,0.55)'
+    ctx.strokeText(p.label, x, y - 18 * k)
     ctx.fillStyle = '#fff'
     ctx.fillText(p.label, x, y - 18 * k)
   }
