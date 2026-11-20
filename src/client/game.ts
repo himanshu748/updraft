@@ -267,7 +267,9 @@ function showCard(rsp: RunRsp | undefined): void {
   hud.login.hidden = loggedIn || !ok
   hud.card.hidden = false
   setTimeout(() => {
-    if (mode === 'done') hud.again.focus({preventScroll: true})
+    if (mode !== 'done') return
+    staleSpace = spaceHeld
+    hud.again.focus({preventScroll: true})
   }, 600)
 }
 
@@ -426,18 +428,22 @@ window.addEventListener('blur', () => {
   holding = false
 })
 window.addEventListener('resize', resize)
-// A Space held through the crash would otherwise click the newly focused button on release.
-let againKeyDown = false
-hud.again.addEventListener('keydown', ev => {
-  if (!ev.repeat) againKeyDown = true
+// A Space held through the crash must not click Fly again when it is released.
+let spaceHeld = false
+let staleSpace = false
+window.addEventListener('keydown', ev => {
+  if (ev.code === 'Space') spaceHeld = true
 })
-hud.again.addEventListener('blur', () => {
-  againKeyDown = false
+window.addEventListener('keyup', ev => {
+  if (ev.code === 'Space') spaceHeld = false
 })
-hud.again.addEventListener('click', ev => {
-  const pressed = ev.detail > 0 || againKeyDown
-  againKeyDown = false
-  if (pressed && performance.now() - doneAt > 600) reset()
+hud.again.addEventListener('keyup', ev => {
+  if (ev.code !== 'Space') return
+  if (staleSpace) ev.preventDefault()
+  staleSpace = false
+})
+hud.again.addEventListener('click', () => {
+  if (performance.now() - doneAt > 600) reset()
 })
 hud.login.addEventListener('click', () => {
   try {
