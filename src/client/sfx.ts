@@ -1,16 +1,11 @@
 /** Tiny synthesized sound effects: no audio files, no recording. */
 export class Sfx {
   private ctx: AudioContext | undefined
-  private on = true
+  on = true
 
   unlock(): void {
     if (!this.ctx) this.ctx = new AudioContext()
     void this.ctx.resume()
-  }
-
-  toggle(): boolean {
-    this.on = !this.on
-    return this.on
   }
 
   private tone(
