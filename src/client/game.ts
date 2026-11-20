@@ -346,8 +346,45 @@ function draw(now: number): void {
   hud.bar.style.setProperty('--p', `${pct}%`)
 }
 
+/** Before the first drag: pulse the plane and point left so a new player knows where to pull. */
+function drawThrowCue(u: number, px: number, py: number): void {
+  const t = (performance.now() % 1400) / 1400
+  const reach = Math.min(70 * u, px - 8 * u)
+  const tip = px - reach
+  const ty = py - 26 * u
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  for (const [color, width] of [
+    ['rgba(20,28,52,0.45)', 6],
+    ['#fff', 3],
+  ] as const) {
+    ctx.globalAlpha = 1 - t * 0.85
+    ctx.strokeStyle = color
+    ctx.lineWidth = width * u
+    ctx.beginPath()
+    ctx.arc(px, py, (14 + 22 * t) * u, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    ctx.beginPath()
+    ctx.moveTo(px - 10 * u, ty)
+    ctx.lineTo(tip, ty)
+    ctx.moveTo(tip + 8 * u, ty - 7 * u)
+    ctx.lineTo(tip, ty)
+    ctx.lineTo(tip + 8 * u, ty + 7 * u)
+    ctx.stroke()
+  }
+  ctx.lineCap = 'butt'
+  ctx.lineJoin = 'miter'
+}
+
 function drawAim(cam: Camera): void {
-  if (!aimFrom || (aim.lx === 0 && aim.ly === 0)) return
+  const u = canvas.width / (canvas.clientWidth || canvas.width)
+  const px = (flight.x - cam.x) * cam.scale
+  const py = cam.h - (flight.y - cam.y) * cam.scale
+  if (!aimFrom || (aim.lx === 0 && aim.ly === 0)) {
+    if (!aimFrom) drawThrowCue(u, px, py)
+    return
+  }
   const preview = new Flight(dailyCourse(day).course, aim.lx, aim.ly)
   ctx.fillStyle = 'rgba(255,255,255,0.9)'
   for (let i = 0; i < 70 && preview.status === 'flying'; i++) {
@@ -357,7 +394,7 @@ function drawAim(cam: Camera): void {
       ctx.arc(
         (preview.x - cam.x) * cam.scale,
         cam.h - (preview.y - cam.y) * cam.scale,
-        3,
+        3 * u,
         0,
         Math.PI * 2,
       )
@@ -366,12 +403,13 @@ function drawAim(cam: Camera): void {
   }
   const power = Math.min(1, Math.hypot(aim.lx, aim.ly) / maxLaunch)
   ctx.strokeStyle = `hsl(${120 - power * 120} 90% 60%)`
-  ctx.lineWidth = 4
+  ctx.lineWidth = 4 * u
   ctx.beginPath()
-  const px = (flight.x - cam.x) * cam.scale
-  const py = cam.h - (flight.y - cam.y) * cam.scale
   ctx.moveTo(px, py)
-  ctx.lineTo(px + (aim.lx / maxLaunch) * 80, py + (aim.ly / maxLaunch) * 80)
+  ctx.lineTo(
+    px + (aim.lx / maxLaunch) * 80 * u,
+    py + (aim.ly / maxLaunch) * 80 * u,
+  )
   ctx.stroke()
 }
 
