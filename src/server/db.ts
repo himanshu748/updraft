@@ -115,6 +115,11 @@ export async function dbDayPost(day: DayKey): Promise<T3 | undefined> {
   return (await redis.get(dayPostKey(day))) as T3 | undefined
 }
 
+/** True for exactly one caller per day, so concurrent cron/menu calls post once. */
+export async function dbClaimDayPost(day: DayKey): Promise<boolean> {
+  return (await redis.incrBy(`postlock:${day}`, 1)) === 1
+}
+
 export async function dbSetDayPost(day: DayKey, t3: T3): Promise<void> {
   await redis.set(dayPostKey(day), t3)
 }

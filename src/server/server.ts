@@ -29,6 +29,7 @@ import {isValidInput, simulate} from '../shared/sim.ts'
 import {
   dbBest,
   dbBoard,
+  dbClaimDayPost,
   dbCountFlight,
   dbDayPost,
   dbFlights,
@@ -233,6 +234,8 @@ async function routeShare(req: ShareReq): Promise<ShareRsp> {
 async function ensureDayPost(day: DayKey): Promise<string> {
   const existing = await dbDayPost(day)
   if (existing) return existing
+  if (!(await dbClaimDayPost(day)))
+    throw Error(`${day} post is already being created`)
   const {course} = dailyCourse(day)
   const post = await reddit.submitCustomPost({
     title: `Updraft · ${prettyDay(day)} · ${course.name} (${course.theme.name})`,
