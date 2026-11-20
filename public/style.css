@@ -1,0 +1,234 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #fff;
+  background: #5fb6f2;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+button {
+  font: inherit;
+  font-weight: 700;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7em 1.3em;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1d2a44;
+  cursor: pointer;
+}
+button.primary {
+  background: #ff4500;
+  color: #fff;
+  box-shadow: 0 4px 0 #b83200;
+}
+button.primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #b83200;
+}
+button:disabled {
+  opacity: 0.6;
+}
+button.icon {
+  padding: 0.3em 0.55em;
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+.hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 14px;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.hud .right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hud button {
+  pointer-events: auto;
+}
+.time {
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sub {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.92;
+}
+.progress {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  top: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+.progress::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--p, 0%);
+  border-radius: 3px;
+  background: #fff;
+}
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 9%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.38);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.card[hidden],
+.hint[hidden],
+button[hidden] {
+  display: none;
+}
+.card {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 380px);
+  max-height: 88vh;
+  overflow: auto;
+  background: rgba(20, 28, 52, 0.88);
+  backdrop-filter: blur(8px);
+  border-radius: 22px;
+  padding: 20px 20px 14px;
+  text-align: center;
+  line-height: 1.5;
+  animation: pop 0.25s ease-out;
+}
+.card .big {
+  font-size: 38px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.card .dim {
+  opacity: 0.7;
+  font-size: 14px;
+}
+.pill.new {
+  display: inline-block;
+  background: #ffd23f;
+  color: #3a2a00;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 14px 0 6px;
+}
+.card h3 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+.board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 14px;
+}
+.board li {
+  display: grid;
+  grid-template-columns: 2em 1fr auto;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 8px;
+}
+.board li.me {
+  background: rgba(255, 255, 255, 0.15);
+}
+.board li i {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.board li.empty {
+  display: block;
+  text-align: center;
+  opacity: 0.7;
+}
+@keyframes pop {
+  from {
+    transform: translate(-50%, -46%) scale(0.95);
+    opacity: 0;
+  }
+}
+.splash main {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 12px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.splash main button {
+  pointer-events: auto;
+}
+.brand {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+.title {
+  font-size: clamp(22px, 6vw, 34px);
+  font-weight: 900;
+}
+.stats {
+  font-size: 15px;
+  font-weight: 600;
+  max-width: 30em;
+}
+.big-btn {
+  font-size: 20px;
+  padding: 0.6em 2em;
+  margin-top: 8px;
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "updraft",
+  "post": {
+    "entrypoints": {
+      "default": {
+        "entry": "splash.html"
+      },
+      "game": {
+        "entry": "game.html"
+      }
+    }
+  },
+  "server": {},
+  "menu": {
+    "items": [
+      {
+        "label": "Post today's Updraft",
+        "description": "Create today's Updraft race post (once per day).",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/on/menu/new-post"
+      }
+    ]
+  },
+  "triggers": {
+    "onAppInstall": "/internal/on/app/install"
+  },
+  "scripts": {
+    "dev": "npm run watch"
+  },
+  "permissions": {
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "scope": "user"
+    }
+  },
+  "scheduler": {
+    "tasks": {
+      "daily-post": {
+        "endpoint": "/internal/scheduler/daily-post",
+        "cron": "1 0 * * *"
+      }
+    }
+  }
+}
