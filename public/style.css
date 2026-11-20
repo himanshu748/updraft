@@ -211,6 +211,16 @@ button[hidden] {
 .splash main button {
   pointer-events: auto;
 }
+.plate {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: min(92vw, 30em);
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: rgba(14, 22, 44, 0.55);
+  backdrop-filter: blur(6px);
+}
 .brand {
   font-size: 15px;
   font-weight: 800;
