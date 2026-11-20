@@ -21,6 +21,8 @@ export type DayRsp = {
   board: BoardEntry[]
   ghosts: Ghost[]
   me: {frames: number; rank: number; input: RunInput} | null
+  /** Link to the comment you posted about your current best, if any. */
+  myComment: string | null
   streak: number
 }
 
@@ -42,7 +44,8 @@ export type RunRsp = {
 }
 
 export type ShareReq = {day: DayKey}
-export type ShareRsp = {commentUrl: string}
+/** `existing` when your best was already commented, so nothing new was posted. */
+export type ShareRsp = {commentUrl: string; existing: boolean}
 
 export type Endpoint = (typeof Endpoint)[keyof typeof Endpoint]
 export const Endpoint = {

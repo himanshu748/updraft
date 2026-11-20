@@ -184,8 +184,21 @@ test('sharing posts the best time as a comment', async () => {
     body: {day: today},
   })
   assert.equal(status, 200)
-  assert.equal(json.commentUrl, '/r/updraft/comments/abc/def/')
+  assert.equal(
+    json.commentUrl,
+    'https://www.reddit.com/r/updraft/comments/abc/def/',
+  )
+  assert.equal(json.existing, false)
   assert.match(comments[0] ?? '', /#1 of \d+/)
+  const again = await call<ShareRsp>(Endpoint.Share, {
+    user: 'alice',
+    body: {day: today},
+  })
+  assert.equal(again.json.existing, true)
+  assert.equal(again.json.commentUrl, json.commentUrl)
+  assert.equal(comments.length, 1, 'a second tap must not post again')
+  const day = await call<DayRsp>(Endpoint.Day, {user: 'alice'})
+  assert.equal(day.json.myComment, json.commentUrl)
   const anon = await call<ErrorRsp>(Endpoint.Share, {body: {day: today}})
   assert.equal(anon.status, 401)
 })
