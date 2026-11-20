@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    >
+    <title>Updraft</title>
+    <link rel="modulepreload" href="game.js">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body class="game">
+    <canvas id="view"></canvas>
+    <header class="hud">
+      <div>
+        <div id="time" class="time">0.00s</div>
+        <div id="course-name" class="sub"></div>
+      </div>
+      <div class="right">
+        <div id="par" class="sub"></div>
+        <button id="mute" type="button" class="icon" aria-label="Toggle sound">
+          🔊
+        </button>
+      </div>
+    </header>
+    <div id="progress" class="progress"></div>
+    <div id="hint" class="hint"></div>
+    <section id="card" class="card" hidden>
+      <div id="card-body"></div>
+      <div class="actions">
+        <button id="again" type="button" class="primary">Fly again</button>
+        <button id="share" type="button">Comment my time</button>
+        <button id="login" type="button">Log in to save your time</button>
+      </div>
+      <h3>Today's fastest</h3>
+      <ol id="board" class="board"></ol>
+    </section>
+    <script src="game.js" type="module"></script>
+  </body>
+</html>

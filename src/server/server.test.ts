@@ -1,0 +1,196 @@
+import assert from 'node:assert/strict'
+import {createServer} from 'node:http'
+import type {AddressInfo, Server} from 'node:net'
+import {after, before, test} from 'node:test'
+import {type Context, reddit, redis, runWithContext} from '@devvit/web/server'
+import {
+  type DayRsp,
+  Endpoint,
+  type ErrorRsp,
+  type RunRsp,
+  type ShareRsp,
+} from '../shared/api.ts'
+import {autopilot, dailyCourse} from '../shared/bot.ts'
+import {addDays, dayKey} from '../shared/day.ts'
+import type {RunInput} from '../shared/sim.ts'
+import {installMemoryRedis} from './memoryRedis.ts'
+import {onReq} from './server.ts'
+
+const today = dayKey()
+let server: Server
+let serverURL: string
+let restoreRedis: () => void
+let comments: string[] = []
+const submitComment = reddit.submitComment.bind(reddit)
+const setUserFlair = reddit.setUserFlair.bind(reddit)
+
+before(async () => {
+  restoreRedis = installMemoryRedis(redis)
+  reddit.submitComment = (async (opts: {text: string}) => {
+    comments.push(opts.text)
+    return {permalink: '/r/updraft/comments/abc/def/'}
+  }) as unknown as typeof reddit.submitComment
+  reddit.setUserFlair = async () => {}
+  server = createServer(async (req, rsp) => {
+    const username = req.headers['x-user'] as string | undefined
+    const day = req.headers['x-day'] as string | undefined
+    await runWithContext(
+      {
+        appName: 'updraft',
+        postId: 't3_123',
+        subredditName: 'updraft_dev',
+        userId: username ? 't2_123' : undefined,
+        username,
+        postData: day ? {day} : undefined,
+      } as unknown as Context,
+      () => onReq(req, rsp),
+    )
+  })
+  await new Promise<void>(resolve => {
+    server.listen(0, '127.0.0.1', () => resolve())
+  })
+  serverURL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+})
+
+after(async () => {
+  restoreRedis()
+  reddit.submitComment = submitComment
+  reddit.setUserFlair = setUserFlair
+  await new Promise<void>((resolve, reject) =>
+    server.close(err => (err ? reject(err) : resolve())),
+  )
+})
+
+async function call<T>(
+  endpoint: string,
+  opts: {user?: string; day?: string; body?: unknown} = {},
+): Promise<{status: number; json: T}> {
+  const headers: Record<string, string> = {}
+  if (opts.user) headers['x-user'] = opts.user
+  if (opts.day) headers['x-day'] = opts.day
+  const rsp = await fetch(`${serverURL}/${endpoint}`, {
+    method: opts.body === undefined ? 'GET' : 'POST',
+    headers,
+    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+  })
+  return {status: rsp.status, json: (await rsp.json()) as T}
+}
+
+const best = (day: string): RunInput => autopilot(dailyCourse(day).course)
+/** Same route as the autopilot but releasing late, so it lands a slower (or no) time. */
+function slower(input: RunInput): RunInput {
+  return {...input, lx: input.lx + 30}
+}
+
+test('a fresh post has an empty board and the day course par', async () => {
+  const {status, json} = await call<DayRsp>(Endpoint.Day, {user: 'alice'})
+  assert.equal(status, 200)
+  assert.equal(json.day, today)
+  assert.equal(json.players, 0)
+  assert.deepEqual(json.board, [])
+  assert.deepEqual(json.par, dailyCourse(today).par)
+  assert.equal(json.me, null)
+})
+
+test('the server re-flies the input and ranks the time it measured', async () => {
+  const input = best(today)
+  const expected = dailyCourse(today).bot.frames
+  const {json} = await call<RunRsp>(Endpoint.Run, {
+    user: 'alice',
+    body: {day: today, input},
+  })
+  assert.equal(json.status, 'finished')
+  assert.equal(json.frames, expected)
+  assert.equal(json.medal, 'silver')
+  assert.equal(json.improved, true)
+  assert.equal(json.rank, 1)
+  assert.equal(json.streak, 1)
+
+  const again = await call<RunRsp>(Endpoint.Run, {
+    user: 'alice',
+    body: {day: today, input},
+  })
+  assert.equal(again.json.improved, false)
+  assert.equal(again.json.streak, 1)
+
+  const day = await call<DayRsp>(Endpoint.Day, {user: 'alice'})
+  assert.equal(day.json.players, 1)
+  assert.equal(day.json.flights, 2)
+  assert.deepEqual(day.json.board, [{rank: 1, name: 'alice', frames: expected}])
+  assert.deepEqual(day.json.ghosts[0]?.input, input)
+  assert.equal(day.json.me?.frames, expected)
+})
+
+test('a crash is not saved and a slower finish ranks behind', async () => {
+  const crash = await call<RunRsp>(Endpoint.Run, {
+    user: 'bob',
+    body: {day: today, input: {lx: -5, ly: 0, toggles: []}},
+  })
+  assert.equal(crash.json.status, 'crashed')
+  assert.equal(crash.json.saved, false)
+  assert.equal(crash.json.best, null)
+
+  const r = await call<RunRsp>(Endpoint.Run, {
+    user: 'bob',
+    body: {day: today, input: slower(best(today))},
+  })
+  if (r.json.status === 'finished') {
+    assert.ok(r.json.frames !== dailyCourse(today).bot.frames)
+    const board = (await call<DayRsp>(Endpoint.Day, {user: 'bob'})).json.board
+    assert.equal(board.length, 2)
+    assert.ok((board[0]?.frames ?? 0) <= (board[1]?.frames ?? 0))
+  }
+})
+
+test('logged-out players can fly but nothing is saved', async () => {
+  const {json} = await call<RunRsp>(Endpoint.Run, {
+    body: {day: today, input: best(today)},
+  })
+  assert.equal(json.status, 'finished')
+  assert.equal(json.saved, false)
+  assert.equal(json.rank, null)
+  const day = await call<DayRsp>(Endpoint.Day)
+  assert.equal(day.json.username, null)
+  assert.ok(!day.json.board.some(b => b.name === 'undefined'))
+})
+
+test('old posts keep their own day and do not touch the streak', async () => {
+  const past = addDays(today, -3)
+  const {json} = await call<RunRsp>(Endpoint.Run, {
+    user: 'carol',
+    day: past,
+    body: {day: past, input: best(past)},
+  })
+  assert.equal(json.status, 'finished')
+  assert.equal(json.streak, 0)
+  const d = await call<DayRsp>(Endpoint.Day, {user: 'carol', day: past})
+  assert.equal(d.json.day, past)
+  assert.equal(d.json.board[0]?.name, 'carol')
+})
+
+test('tampered input is rejected', async () => {
+  const {status, json} = await call<ErrorRsp>(Endpoint.Run, {
+    user: 'alice',
+    body: {day: today, input: {lx: 999, ly: 0, toggles: []}},
+  })
+  assert.equal(status, 400)
+  assert.equal(json.error, 'bad input')
+})
+
+test('sharing posts the best time as a comment', async () => {
+  comments = []
+  const {status, json} = await call<ShareRsp>(Endpoint.Share, {
+    user: 'alice',
+    body: {day: today},
+  })
+  assert.equal(status, 200)
+  assert.equal(json.commentUrl, '/r/updraft/comments/abc/def/')
+  assert.match(comments[0] ?? '', /#1 of \d+/)
+  const anon = await call<ErrorRsp>(Endpoint.Share, {body: {day: today}})
+  assert.equal(anon.status, 401)
+})
+
+test('unknown routes 404', async () => {
+  assert.equal((await call<ErrorRsp>('api/nope')).status, 404)
+  assert.equal((await call<ErrorRsp>(Endpoint.Day, {body: {}})).status, 404)
+})
