@@ -19,6 +19,7 @@ canvas {
   height: 100%;
   display: block;
   touch-action: none;
+  -webkit-touch-callout: none;
 }
 button {
   font: inherit;

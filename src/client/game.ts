@@ -466,6 +466,7 @@ canvas.addEventListener('pointerdown', ev => {
 canvas.addEventListener('pointermove', ev => move(ev.clientX, ev.clientY))
 canvas.addEventListener('pointerup', () => release())
 canvas.addEventListener('pointercancel', () => release())
+canvas.addEventListener('contextmenu', ev => ev.preventDefault())
 window.addEventListener('keydown', ev => {
   if (ev.repeat) return
   const onButton = ev.target instanceof HTMLButtonElement
