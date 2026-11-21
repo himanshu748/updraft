@@ -4,6 +4,13 @@ A daily paper-plane race on Reddit, built with Devvit Web for the Reddit Game of
 
 Every day there is one hand-tuned wind course: thermals, wind bands, boost rings and drifting balloons over rolling hills. Throw your plane, keep it in the air, and race the ghosts of everyone who flew today. The course never changes during the day; you just get faster.
 
+## Play it
+
+- Demo subreddit: [r/updraft_daily_dev](https://www.reddit.com/r/updraft_daily_dev/) (a new course is posted there every day at 00:01 UTC)
+- App listing: [developers.reddit.com/apps/updraft-daily](https://developers.reddit.com/apps/updraft-daily)
+
+Open the day's post and press **Throw** (or **Beat your ghost** once you have a time).
+
 ## How to play
 
 - **Throw:** drag back from the plane (like a slingshot) and let go. The dotted arc previews your throw.
