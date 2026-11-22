@@ -120,7 +120,7 @@ async function init(): Promise<void> {
   stats.textContent = parts.join(' · ')
   const medals = ['🥇', '🥈', '🥉']
   podium.textContent = info.yesterday.length
-    ? `Yesterday: ${info.yesterday.map((r, i) => `${medals[i]} u/${r.name} ${formatTime(r.frames)}`).join(' · ')}`
+    ? `Yesterday: ${info.yesterday.map((r, i) => `${medals[i]}\u00a0u/${r.name}\u00a0${formatTime(r.frames)}`).join(' · ')}`
     : ''
   podium.hidden = !info.yesterday.length
   const rival = pickRival(
