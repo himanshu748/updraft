@@ -1,27 +1,26 @@
-import type {BoardEntry, Ghost} from '../shared/api.ts'
+import type {Ghost} from '../shared/api.ts'
 import {fps} from '../shared/sim.ts'
 
 /**
  * The ghost to chase: the player's own pick while it can still be raced, else the pilot
- * just ahead of them (the one just behind when they lead, #1 before their first time).
+ * just faster than their best (the one just slower when they lead, the fastest before
+ * their first time). Works from the ghosts, which reach further down the board than the
+ * ten rows shown.
  */
 export function pickRival(
-  board: readonly BoardEntry[],
   ghosts: readonly Ghost[],
   me: string | null,
+  myFrames: number | null,
   stored: string | null,
 ): string | null {
-  const raceable = (name: string): boolean =>
-    name !== me && ghosts.some(g => g.name === name)
-  if (stored && raceable(stored)) return stored
-  const mine = board.find(r => r.name === me)
-  const order = mine
-    ? [
-        ...board.filter(r => r.rank < mine.rank).reverse(),
-        ...board.filter(r => r.rank > mine.rank),
-      ]
-    : board
-  return order.find(r => raceable(r.name))?.name ?? null
+  const others = ghosts
+    .filter(g => g.name !== me)
+    .sort((a, b) => a.frames - b.frames)
+  if (stored && others.some(g => g.name === stored)) return stored
+  if (myFrames === null) return others[0]?.name ?? null
+  const ahead = others.filter(g => g.frames <= myFrames)
+  const behind = others.filter(g => g.frames > myFrames)
+  return (ahead.at(-1) ?? behind[0])?.name ?? null
 }
 
 /** Seconds the player leads (+) or trails (-) a ghost, from the gap in x at their speed. */

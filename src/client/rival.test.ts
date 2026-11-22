@@ -1,43 +1,46 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import type {BoardEntry, Ghost} from '../shared/api.ts'
+import type {Ghost} from '../shared/api.ts'
 import {fps} from '../shared/sim.ts'
 import {leadSeconds, pickRival} from './rival.ts'
 
 const names = ['ace', 'bo', 'cy', 'di']
-const board: BoardEntry[] = names.map((name, i) => ({
-  rank: i + 1,
+const ghost = (name: string, frames: number): Ghost => ({
   name,
-  frames: 900 + i * 10,
-}))
-const ghosts: Ghost[] = board.map(r => ({
-  name: r.name,
-  frames: r.frames,
+  frames,
   input: {lx: -90, ly: 40, toggles: []},
-}))
+})
+const ghosts: Ghost[] = names.map((name, i) => ghost(name, 900 + i * 10))
+const best = (name: string): number =>
+  ghosts.find(g => g.name === name)?.frames ?? 0
 
 test('chases the pilot just ahead', () => {
-  assert.equal(pickRival(board, ghosts, 'cy', null), 'bo')
+  assert.equal(pickRival(ghosts, 'cy', best('cy'), null), 'bo')
+})
+
+test('works past the ten board rows, from the ghosts', () => {
+  const field = Array.from({length: 24}, (_, i) => ghost(`p${i + 1}`, 900 + i))
+  assert.equal(pickRival(field, 'p15', 914, null), 'p14')
 })
 
 test('the leader chases the runner-up', () => {
-  assert.equal(pickRival(board, ghosts, 'ace', null), 'bo')
+  assert.equal(pickRival(ghosts, 'ace', best('ace'), null), 'bo')
 })
 
 test('a new pilot chases #1', () => {
-  assert.equal(pickRival(board, ghosts, null, null), 'ace')
-  assert.equal(pickRival(board, ghosts, 'newbie', null), 'ace')
+  assert.equal(pickRival(ghosts, null, null, null), 'ace')
+  assert.equal(pickRival(ghosts, 'newbie', null, null), 'ace')
 })
 
 test("keeps the player's pick, but never themselves or a pilot without a ghost", () => {
-  assert.equal(pickRival(board, ghosts, 'cy', 'di'), 'di')
-  assert.equal(pickRival(board, ghosts, 'cy', 'cy'), 'bo')
-  assert.equal(pickRival(board, ghosts, 'cy', 'gone'), 'bo')
-  assert.equal(pickRival(board, ghosts.slice(2), 'di', null), 'cy')
+  assert.equal(pickRival(ghosts, 'cy', best('cy'), 'di'), 'di')
+  assert.equal(pickRival(ghosts, 'cy', best('cy'), 'cy'), 'bo')
+  assert.equal(pickRival(ghosts, 'cy', best('cy'), 'gone'), 'bo')
+  assert.equal(pickRival(ghosts.slice(2), 'di', best('di'), null), 'cy')
 })
 
 test('no rival on an empty board', () => {
-  assert.equal(pickRival([], [], 'ace', 'bo'), null)
+  assert.equal(pickRival([], 'ace', 900, 'bo'), null)
 })
 
 test('lead is the x gap in seconds at the current speed', () => {

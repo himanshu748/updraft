@@ -140,9 +140,9 @@ function canRace(name: string): boolean {
 function renderBoard(): void {
   const rows = info?.board ?? []
   rival = pickRival(
-    rows,
     info?.ghosts ?? [],
     info?.username ?? null,
+    info?.me?.frames ?? null,
     storedRival(),
   )
   hud.board.replaceChildren(
