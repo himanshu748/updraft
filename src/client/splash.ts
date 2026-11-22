@@ -6,6 +6,7 @@ import {dayKey, formatTime, prettyDay, untilNextDay} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
 import {fetchDay} from './fetch.ts'
 import {ghostColors} from './render.ts'
+import {pickRival} from './rival.ts'
 
 const canvas = document.getElementById('map') as HTMLCanvasElement
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
@@ -80,6 +81,15 @@ function draw(): void {
   ctx.fillRect(0, 0, w, h)
 }
 
+/** The rival the game will pick, so the button names who you're about to race. */
+function storedRival(day: string): string | null {
+  try {
+    return localStorage.getItem(`updraft:rival:${day}`)
+  } catch {
+    return null
+  }
+}
+
 async function init(): Promise<void> {
   draw()
   try {
@@ -107,7 +117,14 @@ async function init(): Promise<void> {
     )
   if (today && info.me) parts.push(`new course in ${untilNextDay()}`)
   stats.textContent = parts.join(' · ')
-  if (info.me) startBtn.textContent = 'Beat your ghost'
+  const rival = pickRival(
+    info.ghosts,
+    info.username,
+    info.me?.frames ?? null,
+    storedRival(info.day),
+  )
+  if (rival) startBtn.textContent = `Chase u/${rival}`
+  else if (info.me) startBtn.textContent = 'Beat your ghost'
   else if (info.day !== info.today) startBtn.textContent = 'Fly this course'
   draw()
 }
