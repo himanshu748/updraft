@@ -202,7 +202,6 @@ function reset(): void {
   const list: Ghost[] = [...(info?.ghosts ?? [])].sort(
     (a, b) => Number(b.name === rival) - Number(a.name === rival),
   )
-  list.push(parPilotGhost())
   if (info?.me && !list.some(g => g.name === info?.username))
     list.push({
       name: info.username ?? 'you',
@@ -210,7 +209,7 @@ function reset(): void {
       input: info.me.input,
     })
   let colorIndex = 0
-  ghosts = list.slice(0, 25).map(ghost => {
+  ghosts = [...list.slice(0, 25), parPilotGhost()].map(ghost => {
     const mine = ghost.name === info?.username
     const chased = ghost.name === rival
     const par = ghost.name === parPilot
