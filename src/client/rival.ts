@@ -18,8 +18,8 @@ export function pickRival(
     .sort((a, b) => a.frames - b.frames)
   if (stored && others.some(g => g.name === stored)) return stored
   if (myFrames === null) return others[0]?.name ?? null
-  const ahead = others.filter(g => g.frames <= myFrames)
-  const behind = others.filter(g => g.frames > myFrames)
+  const ahead = others.filter(g => g.frames < myFrames)
+  const behind = others.filter(g => g.frames >= myFrames)
   return (ahead.at(-1) ?? behind[0])?.name ?? null
 }
 

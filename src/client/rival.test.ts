@@ -23,6 +23,12 @@ test('works past the ten board rows, from the ghosts', () => {
   assert.equal(pickRival(field, 'p15', 914, null), 'p14')
 })
 
+test('a tie does not count as ahead', () => {
+  const tied = [ghost('ace', 900), ghost('bo', 910), ghost('cy', 910)]
+  assert.equal(pickRival(tied, 'bo', 910, null), 'ace')
+  assert.equal(pickRival(tied.slice(1), 'bo', 910, null), 'cy')
+})
+
 test('the leader chases the runner-up', () => {
   assert.equal(pickRival(ghosts, 'ace', best('ace'), null), 'bo')
 })
