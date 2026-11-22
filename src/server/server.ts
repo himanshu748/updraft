@@ -19,6 +19,7 @@ import {
 } from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {
+  addDays,
   type DayKey,
   dayKey,
   formatTime,
@@ -163,6 +164,7 @@ async function routeDay(): Promise<DayRsp> {
     flights: await dbFlights(day),
     par,
     board: board.slice(0, 10),
+    yesterday: await dbBoard(addDays(day, -1), 3),
     ghosts,
     me,
     myComment,

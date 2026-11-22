@@ -13,6 +13,7 @@ const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
 const startBtn = document.getElementById('start-btn') as HTMLButtonElement
 const title = document.getElementById('title') as HTMLElement
 const stats = document.getElementById('stats') as HTMLElement
+const podium = document.getElementById('podium') as HTMLElement
 
 startBtn.addEventListener('click', ev => {
   try {
@@ -117,6 +118,11 @@ async function init(): Promise<void> {
     )
   if (today && info.me) parts.push(`new course in ${untilNextDay()}`)
   stats.textContent = parts.join(' · ')
+  const medals = ['🥇', '🥈', '🥉']
+  podium.textContent = info.yesterday.length
+    ? `Yesterday: ${info.yesterday.map((r, i) => `${medals[i]}\u00a0u/${r.name}\u00a0${formatTime(r.frames)}`).join(' · ')}`
+    : ''
+  podium.hidden = !info.yesterday.length
   const rival = pickRival(
     info.ghosts,
     info.username,
