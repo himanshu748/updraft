@@ -307,6 +307,16 @@ button[hidden] {
   font-weight: 600;
   max-width: 30em;
 }
+.podium {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.85;
+  max-width: 30em;
+}
+.podium[hidden] {
+  display: none;
+}
 .big-btn {
   font-size: 20px;
   padding: 0.6em 2em;

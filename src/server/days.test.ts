@@ -131,6 +131,16 @@ test('several players rank by measured time', async () => {
   assert.equal(d.json.me?.rank, order.indexOf('cara') + 1)
 })
 
+test("the next day's post shows yesterday's podium", async () => {
+  at('2026-11-22T08:00:00Z')
+  const prev = await call<DayRsp>(Endpoint.Day, {day: '2026-11-21'})
+  const d = await call<DayRsp>(Endpoint.Day, {day: '2026-11-22'})
+  assert.deepEqual(d.json.yesterday, prev.json.board.slice(0, 3))
+  assert.equal(d.json.yesterday.length, 3)
+  const empty = await call<DayRsp>(Endpoint.Day, {day: '2026-11-21'})
+  assert.deepEqual(empty.json.yesterday, [])
+})
+
 test('streaks count consecutive days and reset after a gap', async () => {
   const seen: number[] = []
   for (const day of ['2026-11-22', '2026-11-23', '2026-11-24', '2026-11-26']) {

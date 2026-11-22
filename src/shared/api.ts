@@ -19,6 +19,8 @@ export type DayRsp = {
   flights: number
   par: Par
   board: BoardEntry[]
+  /** The day before's top three, so each post celebrates the last podium. */
+  yesterday: BoardEntry[]
   ghosts: Ghost[]
   me: {frames: number; rank: number; input: RunInput} | null
   /** Link to the comment you posted about your current best, if any. */
