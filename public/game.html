@@ -31,6 +31,7 @@
       </div>
     </header>
     <div id="progress" class="progress"></div>
+    <div id="rival" class="sub rival" aria-live="off" hidden></div>
     <div id="hint" class="hint" aria-live="polite"></div>
     <section id="card" class="card" hidden>
       <div id="card-body" aria-live="polite"></div>
@@ -40,6 +41,9 @@
         <button id="login" type="button">Log in to save your time</button>
       </div>
       <h3>Today's fastest</h3>
+      <p id="board-hint" class="board-hint" hidden>
+        Tap a pilot to race their ghost
+      </p>
       <ol id="board" class="board"></ol>
     </section>
     <script src="game.js" type="module"></script>

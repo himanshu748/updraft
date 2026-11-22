@@ -23,6 +23,7 @@ import {
   type PlaneSprite,
   Scene,
 } from './render.ts'
+import {leadSeconds, pickRival} from './rival.ts'
 import {Sfx} from './sfx.ts'
 
 type Mode = 'loading' | 'aim' | 'flying' | 'done'
@@ -54,6 +55,8 @@ const hud = {
   login: $<HTMLButtonElement>('login'),
   mute: $<HTMLButtonElement>('mute'),
   board: $('board'),
+  boardHint: $('board-hint'),
+  rival: $('rival'),
 }
 
 const sfx = new Sfx()
@@ -65,6 +68,9 @@ let mode: Mode = 'loading'
 let flight: Flight
 let recorder = new InputRecorder()
 let ghosts: GhostFlight[] = []
+let rival: string | null = null
+let rivalFlight: GhostFlight | undefined
+const rivalColor = '#ffd23f'
 let trail: number[] = []
 let holding = false
 let aimFrom: {x: number; y: number} | undefined
@@ -104,17 +110,62 @@ function renderPar(): void {
   )
 }
 
+function storedRival(): string | null {
+  try {
+    return localStorage.getItem(`updraft:rival:${day}`)
+  } catch {
+    return null
+  }
+}
+
+function chooseRival(name: string): void {
+  try {
+    localStorage.setItem(`updraft:rival:${day}`, name)
+  } catch {}
+  renderBoard()
+  if (mode === 'aim') reset()
+  else {
+    hud.rival.hidden = false
+    hud.rival.className = 'sub rival'
+    hud.rival.textContent = `next: vs u/${name}`
+  }
+}
+
+function canRace(name: string): boolean {
+  return (
+    name !== info?.username && Boolean(info?.ghosts.some(g => g.name === name))
+  )
+}
+
 function renderBoard(): void {
   const rows = info?.board ?? []
+  rival = pickRival(
+    rows,
+    info?.ghosts ?? [],
+    info?.username ?? null,
+    storedRival(),
+  )
   hud.board.replaceChildren(
     ...rows.map(r => {
       const li = document.createElement('li')
       if (r.name === info?.username) li.className = 'me'
-      li.innerHTML = `<b>${r.rank}</b><span></span><i>${formatTime(r.frames)}</i>`
-      ;(li.children[1] as HTMLElement).textContent = `u/${r.name}`
+      if (r.name === rival) li.classList.add('rival')
+      const raceable = canRace(r.name)
+      const row = document.createElement(raceable ? 'button' : 'div')
+      row.className = 'row'
+      row.innerHTML = `<b>${r.rank}</b><span></span><i>${formatTime(r.frames)}</i>`
+      ;(row.children[1] as HTMLElement).textContent = `u/${r.name}`
+      if (row instanceof HTMLButtonElement) {
+        row.type = 'button'
+        row.setAttribute('aria-pressed', String(r.name === rival))
+        row.setAttribute('aria-label', `Race u/${r.name}'s ghost`)
+        row.addEventListener('click', () => chooseRival(r.name))
+      }
+      li.append(row)
       return li
     }),
   )
+  hud.boardHint.hidden = !rows.some(r => canRace(r.name))
   if (!rows.length)
     hud.board.innerHTML =
       '<li class="empty">No times yet. Be the first ghost.</li>'
@@ -129,7 +180,9 @@ function reset(): void {
   aim = {lx: 0, ly: 0}
   aimFrom = undefined
   acc = 0
-  const list: Ghost[] = [...(info?.ghosts ?? [])]
+  const list: Ghost[] = [...(info?.ghosts ?? [])].sort(
+    (a, b) => Number(b.name === rival) - Number(a.name === rival),
+  )
   if (info?.me && !list.some(g => g.name === info?.username))
     list.push({
       name: info.username ?? 'you',
@@ -137,8 +190,10 @@ function reset(): void {
       input: info.me.input,
     })
   let colorIndex = 0
-  ghosts = list.slice(0, 25).map((ghost, i) => {
+  ghosts = list.slice(0, 25).map(ghost => {
     const mine = ghost.name === info?.username
+    const chased = ghost.name === rival
+    const rank = info?.board.find(r => r.name === ghost.name)?.rank
     return {
       ghost,
       flight: new Flight(course, ghost.input.lx, ghost.input.ly),
@@ -146,11 +201,23 @@ function reset(): void {
       hold: false,
       color: mine
         ? '#ffffff'
-        : (ghostColors[colorIndex++ % ghostColors.length] as string),
-      label: mine ? 'your best' : i < 3 ? `#${i + 1} ${ghost.name}` : '',
+        : chased
+          ? rivalColor
+          : (ghostColors[colorIndex++ % ghostColors.length] as string),
+      label: mine
+        ? 'your best'
+        : chased
+          ? `vs u/${ghost.name}`
+          : rank && rank <= 3
+            ? `#${rank} ${ghost.name}`
+            : '',
       trail: [],
     }
   })
+  rivalFlight = ghosts.find(g => g.ghost.name === rival)
+  hud.rival.hidden = !rivalFlight
+  hud.rival.className = 'sub rival'
+  hud.rival.textContent = rival ? `vs u/${rival}` : ''
   mode = 'aim'
   hud.card.hidden = true
   hud.hint.textContent = 'Drag back and let go, or press Space'
@@ -232,6 +299,20 @@ async function finish(): Promise<void> {
   } catch {}
 }
 
+/** Live split against the chosen rival: how far ahead or behind, in seconds. */
+function renderLead(): void {
+  if (!rivalFlight || !rival) return
+  const r = rivalFlight.flight
+  if (r.status === 'finished') {
+    hud.rival.className = 'sub rival behind'
+    hud.rival.textContent = `u/${rival} landed`
+    return
+  }
+  const s = leadSeconds(flight.x, r.x, flight.speed)
+  hud.rival.className = `sub rival ${s >= 0 ? 'ahead' : 'behind'}`
+  hud.rival.textContent = `${s >= 0 ? '▲' : '▼'} ${Math.abs(s).toFixed(2)}s ${s >= 0 ? 'ahead of' : 'behind'} u/${rival}`
+}
+
 function renderShare(): void {
   hud.share.textContent = info?.myComment
     ? 'View my comment'
@@ -249,6 +330,16 @@ function showCard(rsp: RunRsp | undefined): void {
     lines.push(`<div class="big">${icon} ${formatTime(flight.frame)}</div>`)
     if (rsp?.improved)
       lines.push('<div class="pill new">New personal best</div>')
+    if (rivalFlight && rival) {
+      const diff = flight.frame - rivalFlight.ghost.frames
+      const who = escapeHtml(`u/${rival}`)
+      if (diff < 0)
+        lines.push(
+          `<div class="pill win">Beat ${who} by ${formatTime(-diff)}</div>`,
+        )
+      else if (diff === 0) lines.push(`<div>Dead heat with ${who}</div>`)
+      else lines.push(`<div>${who} was ${formatTime(diff)} faster</div>`)
+    }
     if (rsp?.rank)
       lines.push(`<div>#${rsp.rank} of ${rsp.players} pilots today</div>`)
     if (rsp && rsp.players > 1)
@@ -303,6 +394,7 @@ function loop(now: number): void {
       stepAll()
     }
     hud.time.textContent = formatTime(flight.frame)
+    if (flight.frame % 6 === 0) renderLead()
   }
   draw(now)
   requestAnimationFrame(loop)
@@ -563,3 +655,7 @@ try {
 } catch {}
 resize()
 void init()
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+}
