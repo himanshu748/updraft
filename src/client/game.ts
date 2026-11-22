@@ -1,6 +1,6 @@
 import {navigateTo, showLoginPrompt, showToast} from '@devvit/web/client'
 import type {DayRsp, Ghost, RunRsp} from '../shared/api.ts'
-import {dailyCourse} from '../shared/bot.ts'
+import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {
   type DayKey,
   dayKey,
@@ -71,6 +71,24 @@ let ghosts: GhostFlight[] = []
 let rival: string | null = null
 let rivalFlight: GhostFlight | undefined
 const rivalColor = '#ffd23f'
+/** The autopilot that set the day's par: always there to race, even before anyone has flown. */
+const parPilot = 'par pilot'
+let parGhost: {day: DayKey; ghost: Ghost} | undefined
+
+function pilotName(name: string): string {
+  return name === parPilot ? 'the par pilot' : `u/${name}`
+}
+
+function parPilotGhost(): Ghost {
+  if (parGhost?.day !== day) {
+    const {course, bot} = dailyCourse(day)
+    parGhost = {
+      day,
+      ghost: {name: parPilot, frames: bot.frames, input: autopilot(course)},
+    }
+  }
+  return parGhost.ghost
+}
 let trail: number[] = []
 let holding = false
 let aimFrom: {x: number; y: number} | undefined
@@ -139,12 +157,13 @@ function canRace(name: string): boolean {
 
 function renderBoard(): void {
   const rows = info?.board ?? []
-  rival = pickRival(
-    info?.ghosts ?? [],
-    info?.username ?? null,
-    info?.me?.frames ?? null,
-    storedRival(),
-  )
+  rival =
+    pickRival(
+      info?.ghosts ?? [],
+      info?.username ?? null,
+      info?.me?.frames ?? null,
+      storedRival(),
+    ) ?? parPilot
   hud.board.replaceChildren(
     ...rows.map(r => {
       const li = document.createElement('li')
@@ -183,6 +202,7 @@ function reset(): void {
   const list: Ghost[] = [...(info?.ghosts ?? [])].sort(
     (a, b) => Number(b.name === rival) - Number(a.name === rival),
   )
+  list.push(parPilotGhost())
   if (info?.me && !list.some(g => g.name === info?.username))
     list.push({
       name: info.username ?? 'you',
@@ -193,6 +213,7 @@ function reset(): void {
   ghosts = list.slice(0, 25).map(ghost => {
     const mine = ghost.name === info?.username
     const chased = ghost.name === rival
+    const par = ghost.name === parPilot
     const rank = info?.board.find(r => r.name === ghost.name)?.rank
     return {
       ghost,
@@ -203,21 +224,25 @@ function reset(): void {
         ? '#ffffff'
         : chased
           ? rivalColor
-          : (ghostColors[colorIndex++ % ghostColors.length] as string),
+          : par
+            ? '#c9d3e6'
+            : (ghostColors[colorIndex++ % ghostColors.length] as string),
       label: mine
         ? 'your best'
         : chased
-          ? `vs u/${ghost.name}`
-          : rank && rank <= 3
-            ? `#${rank} ${ghost.name}`
-            : '',
+          ? `vs ${pilotName(ghost.name)}`
+          : par
+            ? parPilot
+            : rank && rank <= 3
+              ? `#${rank} ${ghost.name}`
+              : '',
       trail: [],
     }
   })
   rivalFlight = ghosts.find(g => g.ghost.name === rival)
   hud.rival.hidden = !rivalFlight
   hud.rival.className = 'sub rival'
-  hud.rival.textContent = rival ? `vs u/${rival}` : ''
+  hud.rival.textContent = rival ? `vs ${pilotName(rival)}` : ''
   mode = 'aim'
   hud.card.hidden = true
   hud.hint.textContent = 'Drag back and let go, or press Space'
@@ -305,12 +330,12 @@ function renderLead(): void {
   const r = rivalFlight.flight
   if (r.status === 'finished') {
     hud.rival.className = 'sub rival behind'
-    hud.rival.textContent = `u/${rival} landed`
+    hud.rival.textContent = `${pilotName(rival)} landed`
     return
   }
   const s = leadSeconds(flight.x, r.x, flight.speed)
   hud.rival.className = `sub rival ${s >= 0 ? 'ahead' : 'behind'}`
-  hud.rival.textContent = `${s >= 0 ? '▲' : '▼'} ${Math.abs(s).toFixed(2)}s ${s >= 0 ? 'ahead of' : 'behind'} u/${rival}`
+  hud.rival.textContent = `${s >= 0 ? '▲' : '▼'} ${Math.abs(s).toFixed(2)}s ${s >= 0 ? 'ahead of' : 'behind'} ${pilotName(rival)}`
 }
 
 function renderShare(): void {
@@ -332,13 +357,16 @@ function showCard(rsp: RunRsp | undefined): void {
       lines.push('<div class="pill new">New personal best</div>')
     if (rivalFlight && rival) {
       const diff = flight.frame - rivalFlight.ghost.frames
-      const who = escapeHtml(`u/${rival}`)
+      const who = escapeHtml(pilotName(rival))
       if (diff < 0)
         lines.push(
           `<div class="pill win">Beat ${who} by ${formatTime(-diff)}</div>`,
         )
       else if (diff === 0) lines.push(`<div>Dead heat with ${who}</div>`)
-      else lines.push(`<div>${who} was ${formatTime(diff)} faster</div>`)
+      else
+        lines.push(
+          `<div>${rival === parPilot ? 'The par pilot' : who} was ${formatTime(diff)} faster</div>`,
+        )
     }
     if (rsp?.rank)
       lines.push(`<div>#${rsp.rank} of ${rsp.players} pilots today</div>`)
