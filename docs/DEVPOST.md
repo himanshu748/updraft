@@ -39,4 +39,6 @@ Head-to-head ghost challenges in comments, weekly championship courses, communit
 - App listing: https://developers.reddit.com/apps/updraft-daily
 - Demo subreddit: https://www.reddit.com/r/updraft_daily_dev/
 - Repository: https://github.com/himanshu748/updraft
-- Video: `YOUTUBE_URL_HERE` (45–60s: throw, thermal surf, ring, ghost pass, finish + leaderboard)
+- [Published Devpost entry](https://devpost.com/software/updraft-vjakg5)
+- [YouTube demo linked on Devpost](https://youtu.be/KKe-zw4jUCc)
+- [Newer gameplay clip](demo-video.mp4): the par-pilot autopilot flies the local client in offline mode. This clip does not show a saved Reddit leaderboard result.
