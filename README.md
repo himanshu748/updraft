@@ -7,6 +7,14 @@
 Updraft is a paper-plane race inside Reddit. Ride thermals, hit boost rings, and
 race your best ghost or the fastest pilots on the day's course.
 
+## How to play
+
+1. Open the day's post in [the demo subreddit](https://www.reddit.com/r/updraft_daily_dev/) and choose **Throw** or **Chase**.
+2. Drag back from the plane and release to launch. Hold to climb and release to glide. Space and Up Arrow also launch and climb.
+3. Use thermals for lift and boost rings for speed. Avoid balloons and fly through the finish gate to set a time.
+
+You can fly as a guest. Sign in to save your time and ghost.
+
 ## How it uses Devvit
 
 Devvit Web puts the race inside a Reddit post. A scheduled job posts the daily
