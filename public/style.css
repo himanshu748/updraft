@@ -317,6 +317,77 @@ button[hidden] {
 .podium[hidden] {
   display: none;
 }
+.stats:empty {
+  display: none;
+}
+.countdown {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.next {
+  margin: 2px 0 0;
+}
+.board .row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#rival {
+  max-width: calc(100vw - 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 400px) {
+  .time {
+    font-size: 24px;
+  }
+  .hud {
+    padding: 8px 10px;
+  }
+  .sub {
+    font-size: 12px;
+  }
+  .progress {
+    top: 52px;
+    left: 10px;
+    right: 10px;
+  }
+  #rival {
+    top: 66px;
+    left: 10px;
+    font-size: 12px;
+  }
+  .hint {
+    font-size: 14px;
+    bottom: 5%;
+    padding: 7px 12px;
+  }
+  .card {
+    width: min(94vw, 380px);
+    padding: 16px 14px 12px;
+  }
+  .card .big {
+    font-size: 32px;
+  }
+  .big-btn {
+    font-size: 18px;
+  }
+  .plate {
+    padding: 12px;
+  }
+  .stats,
+  .countdown {
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}
 .big-btn {
   font-size: 20px;
   padding: 0.6em 2em;

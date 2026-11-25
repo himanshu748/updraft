@@ -98,18 +98,31 @@ export class Scene {
     ctx.fill()
     ctx.globalAlpha = 1
 
+    if (!t.name.startsWith('Starlit')) {
+      ctx.fillStyle = 'rgba(255,255,255,0.45)'
+      for (let i = 0; i < 16; i++) {
+        const x = ((i * 197 + frame * (8 + (i % 4) * 3)) % (cam.w + 24)) - 12
+        const y = (i * 83) % Math.max(1, cam.h * 0.7)
+        ctx.fillRect(x, y, Math.max(2, 2.4 * s), Math.max(1, 1.2 * s))
+      }
+    }
+
     for (const c of this.clouds) {
       const x = (c.x - cam.x * 0.3) * s
       if (x < -200 * s || x > cam.w + 200 * s) continue
       const y = cam.h - (c.y - cam.y * 0.5) * s
-      ctx.fillStyle = 'rgba(255,255,255,0.75)'
+      ctx.fillStyle = 'rgba(70, 80, 110, 0.13)'
       ctx.beginPath()
-      ctx.ellipse(x, y, 70 * c.s * s, 22 * c.s * s, 0, 0, Math.PI * 2)
+      ctx.ellipse(x, y + 8 * s, 74 * c.s * s, 18 * c.s * s, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(255,255,255,0.82)'
+      ctx.beginPath()
+      ctx.ellipse(x, y, 70 * c.s * s, 18 * c.s * s, 0, 0, Math.PI * 2)
       ctx.ellipse(
         x + 30 * c.s * s,
-        y - 14 * c.s * s,
+        y - 12 * c.s * s,
         40 * c.s * s,
-        22 * c.s * s,
+        18 * c.s * s,
         0,
         0,
         Math.PI * 2,
@@ -289,11 +302,18 @@ export class Scene {
     ctx.lineTo(cam.w, cam.h)
     ctx.closePath()
     ctx.fill()
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'
-    ctx.lineWidth = Math.max(2, 4 * s)
     ctx.beginPath()
-    for (let i = i0; i <= i1; i++)
-      ctx.lineTo(sx(i * groundStep), sy(course.ground[i] ?? 0))
+    for (let i = i0; i <= i1; i++) {
+      const px = sx(i * groundStep)
+      const py = sy(course.ground[i] ?? 0)
+      if (i === i0) ctx.moveTo(px, py)
+      else ctx.lineTo(px, py)
+    }
+    ctx.strokeStyle = shade(t.ground, 0.62)
+    ctx.lineWidth = Math.max(4, 8 * s)
+    ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+    ctx.lineWidth = Math.max(1.5, 2.5 * s)
     ctx.stroke()
 
     // launch flag
@@ -367,27 +387,62 @@ export function drawPlane(
   const x = sx(p.x)
   const y = sy(p.y)
   const a = Math.atan2(-p.hy, p.hx)
-  const k = Math.max(0.6, s)
+  const k = Math.max(0.7, s) * 1.15
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(a)
-  ctx.fillStyle = p.color
-  ctx.beginPath()
-  ctx.moveTo(22 * k, 0)
-  ctx.lineTo(-16 * k, -11 * k)
-  ctx.lineTo(-9 * k, 0)
-  ctx.lineTo(-16 * k, 9 * k)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = 'rgba(0,0,0,0.18)'
-  ctx.beginPath()
-  ctx.moveTo(22 * k, 0)
-  ctx.lineTo(-9 * k, 0)
-  ctx.lineTo(-16 * k, 9 * k)
-  ctx.closePath()
+  ctx.fillStyle = 'rgba(36, 28, 48, 0.22)'
+  ctx.save()
+  ctx.translate(1.5 * k, 2.6 * k)
+  tracePlane(ctx, k)
   ctx.fill()
   ctx.restore()
+  ctx.fillStyle = p.color
+  tracePlane(ctx, k)
+  ctx.fill()
+  ctx.fillStyle = shade(p.color, 0.74)
+  ctx.beginPath()
+  ctx.moveTo(20 * k, 0.3 * k)
+  ctx.lineTo(-8 * k, 2 * k)
+  ctx.lineTo(-15 * k, 11 * k)
+  ctx.lineTo(-3 * k, 3 * k)
+  ctx.closePath()
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(42, 32, 54, 0.4)'
+  ctx.lineWidth = Math.max(1, 1.3 * k)
+  ctx.beginPath()
+  ctx.moveTo(14 * k, 0)
+  ctx.lineTo(-13 * k, 0)
+  ctx.stroke()
+  tracePlane(ctx, k)
+  ctx.strokeStyle = 'rgba(36, 28, 48, 0.7)'
+  ctx.lineWidth = Math.max(1.25, 1.7 * k)
+  ctx.lineJoin = 'round'
+  ctx.stroke()
+  ctx.restore()
   ctx.globalAlpha = 1
+}
+
+/** Folded paper plane, nose to the right, before the caller rotates it. */
+function tracePlane(ctx: CanvasRenderingContext2D, k: number): void {
+  ctx.beginPath()
+  ctx.moveTo(22 * k, 0)
+  ctx.lineTo(-3 * k, -3 * k)
+  ctx.lineTo(-16 * k, -13 * k)
+  ctx.lineTo(-9 * k, -2.2 * k)
+  ctx.lineTo(-19 * k, 0)
+  ctx.lineTo(-9 * k, 2.2 * k)
+  ctx.lineTo(-16 * k, 12 * k)
+  ctx.lineTo(-3 * k, 3 * k)
+  ctx.closePath()
+}
+
+function shade(hex: string, mul: number): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
+  const n = Number.parseInt(hex.slice(1), 16)
+  const ch = (shift: number): number =>
+    Math.max(0, Math.min(255, Math.round(((n >> shift) & 255) * mul)))
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`
 }
 
 interface Box {
