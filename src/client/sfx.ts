@@ -32,7 +32,9 @@ export class Sfx {
   }
 
   whoosh(): void {
-    this.tone(240, 820, 0.25, 'triangle', 0.08)
+    this.rustle(0.18, 1400, 0.09)
+    this.tone(220, 740, 0.22, 'triangle', 0.06)
+    this.tone(110, 180, 0.16, 'sine', 0.04)
   }
   ring(): void {
     this.tone(880, 1320, 0.18, 'sine', 0.12)
@@ -43,6 +45,30 @@ export class Sfx {
       this.tone(f, f, 0.22, 'triangle', 0.12, i * 0.09)
   }
   crash(): void {
-    this.tone(300, 60, 0.35, 'sawtooth', 0.08)
+    this.rustle(0.28, 480, 0.14)
+    this.tone(240, 55, 0.3, 'triangle', 0.07)
+  }
+
+  /** A short band-passed noise burst: paper, not a buzzer. */
+  private rustle(dur: number, freq: number, gain: number): void {
+    const ctx = this.ctx
+    if (!ctx || !this.on) return
+    const n = Math.max(1, Math.floor(ctx.sampleRate * dur))
+    const buf = ctx.createBuffer(1, n, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = freq
+    filter.Q.value = 0.7
+    const g = ctx.createGain()
+    const t = ctx.currentTime
+    g.gain.setValueAtTime(gain, t)
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur)
+    src.connect(filter).connect(g).connect(ctx.destination)
+    src.start(t)
+    src.stop(t + dur)
   }
 }

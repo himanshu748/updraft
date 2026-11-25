@@ -2,10 +2,10 @@ import {requestExpandedMode} from '@devvit/web/client'
 import type {DayRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {groundAt} from '../shared/course.ts'
-import {dayKey, formatTime, prettyDay, untilNextDay} from '../shared/day.ts'
+import {countdown, dayKey, formatTime, prettyDay} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
 import {fetchDay} from './fetch.ts'
-import {ghostColors} from './render.ts'
+import {type Camera, drawPlane, ghostColors} from './render.ts'
 import {pickRival} from './rival.ts'
 
 const canvas = document.getElementById('map') as HTMLCanvasElement
@@ -13,7 +13,9 @@ const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
 const startBtn = document.getElementById('start-btn') as HTMLButtonElement
 const title = document.getElementById('title') as HTMLElement
 const stats = document.getElementById('stats') as HTMLElement
+const countdownEl = document.getElementById('countdown') as HTMLElement
 const podium = document.getElementById('podium') as HTMLElement
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
 
 startBtn.addEventListener('click', ev => {
   try {
@@ -24,62 +26,113 @@ startBtn.addEventListener('click', ev => {
 })
 
 let info: DayRsp | undefined
+let backdrop: HTMLCanvasElement | undefined
+let backdropW = 0
+let backdropH = 0
 
 /** The whole course at a glance, with every ghost's line drawn over it. */
-function draw(): void {
-  const dpr = Math.min(2, window.devicePixelRatio || 1)
-  canvas.width = Math.round(canvas.clientWidth * dpr)
-  canvas.height = Math.round(canvas.clientHeight * dpr)
+function paintBackdrop(w: number, h: number): void {
+  canvas.width = w
+  canvas.height = h
+  if (!backdrop) backdrop = document.createElement('canvas')
+  backdrop.width = w
+  backdrop.height = h
+  backdropW = w
+  backdropH = h
+  const b = backdrop.getContext('2d') as CanvasRenderingContext2D
   const {course} = dailyCourse(info?.day ?? dayKey())
   const t = course.theme
-  const w = canvas.width
-  const h = canvas.height
   const sx = (x: number): number => (x / (course.finishX + 200)) * w
   const sy = (y: number): number => h - (y / 760) * h
-  const sky = ctx.createLinearGradient(0, 0, 0, h)
+  const sky = b.createLinearGradient(0, 0, 0, h)
   sky.addColorStop(0, t.skyTop)
   sky.addColorStop(1, t.skyBottom)
-  ctx.fillStyle = sky
-  ctx.fillRect(0, 0, w, h)
+  b.fillStyle = sky
+  b.fillRect(0, 0, w, h)
   for (const th of course.thermals) {
-    ctx.fillStyle = 'rgba(255,190,110,0.3)'
-    ctx.fillRect(
+    b.fillStyle = 'rgba(255,190,110,0.3)'
+    b.fillRect(
       sx(th.x - th.w / 2),
       sy(th.top),
       sx(th.w),
       sy(groundAt(course, th.x)) - sy(th.top),
     )
   }
-  for (const b of course.balloons) {
-    ctx.fillStyle = `hsl(${b.hue} 80% 60%)`
-    ctx.beginPath()
-    ctx.arc(sx(b.x), sy(b.y), Math.max(3, (b.r / 760) * h), 0, Math.PI * 2)
-    ctx.fill()
+  for (const balloon of course.balloons) {
+    b.fillStyle = `hsl(${balloon.hue} 80% 60%)`
+    b.beginPath()
+    b.arc(
+      sx(balloon.x),
+      sy(balloon.y),
+      Math.max(3, (balloon.r / 760) * h),
+      0,
+      Math.PI * 2,
+    )
+    b.fill()
   }
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
   const lines = info?.ghosts ?? []
   lines.forEach((g, i) => {
-    ctx.strokeStyle =
+    b.strokeStyle =
       g.name === info?.username
         ? '#fff'
         : (ghostColors[i % ghostColors.length] as string)
-    ctx.globalAlpha = 0.55
-    ctx.lineWidth = 2 * dpr
-    ctx.beginPath()
+    b.globalAlpha = 0.55
+    b.lineWidth = 2 * dpr
+    b.beginPath()
     simulate(course, g.input, f => {
-      if (f.frame % 6 === 0) ctx.lineTo(sx(f.x), sy(f.y))
+      if (f.frame % 6 === 0) b.lineTo(sx(f.x), sy(f.y))
     })
-    ctx.stroke()
+    b.stroke()
   })
-  ctx.globalAlpha = 1
-  ctx.fillStyle = t.ground
-  ctx.beginPath()
-  ctx.moveTo(0, h)
+  b.globalAlpha = 1
+  b.fillStyle = t.ground
+  b.beginPath()
+  b.moveTo(0, h)
   for (let x = 0; x <= course.finishX + 200; x += 80)
-    ctx.lineTo(sx(x), sy(groundAt(course, x)))
-  ctx.lineTo(w, h)
-  ctx.fill()
-  ctx.fillStyle = 'rgba(0,0,0,0.18)'
-  ctx.fillRect(0, 0, w, h)
+    b.lineTo(sx(x), sy(groundAt(course, x)))
+  b.lineTo(w, h)
+  b.fill()
+  b.fillStyle = 'rgba(0,0,0,0.18)'
+  b.fillRect(0, 0, w, h)
+}
+
+/** A paper plane already in the air, so the post is moving the moment it opens. */
+function drawGlider(now: number): void {
+  const w = canvas.width
+  const h = canvas.height
+  if (w < 2 || h < 2) return
+  const scale = Math.max(1.6, Math.min(w, h) / 380)
+  const t = reduceMotion ? 0.5 : (now % 8000) / 8000
+  // Stay inside the sky so a wing is never cut off, and fade the loop.
+  const sx = (0.18 + t * 0.64) * w
+  const sy = h * 0.15 + Math.sin(t * Math.PI * 2) * h * 0.025
+  const fade = Math.min(1, t * 8, (1 - t) * 8)
+  const cam: Camera = {x: 0, y: 0, scale, w, h, dpr: 1}
+  drawPlane(ctx, cam, {
+    x: sx / scale,
+    y: (h - sy) / scale,
+    hx: 1,
+    hy: Math.cos(t * Math.PI * 2) * 0.35,
+    color: '#fffaf3',
+    alpha: fade,
+  })
+}
+
+function renderSplash(now = 0): void {
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  const w = Math.round(canvas.clientWidth * dpr)
+  const h = Math.round(canvas.clientHeight * dpr)
+  if (w < 2 || h < 2) return
+  if (!backdrop || w !== backdropW || h !== backdropH) paintBackdrop(w, h)
+  if (!backdrop) return
+  ctx.drawImage(backdrop, 0, 0)
+  drawGlider(now)
+}
+
+function loop(now: number): void {
+  renderSplash(now)
+  if (!reduceMotion) requestAnimationFrame(loop)
 }
 
 /** The rival the game will pick, so the button names who you're about to race. */
@@ -91,13 +144,19 @@ function storedRival(day: string): string | null {
   }
 }
 
+function renderCountdown(): void {
+  countdownEl.textContent = `Next course in ${countdown()}`
+}
+
 async function init(): Promise<void> {
-  draw()
+  renderCountdown()
+  renderSplash()
   try {
     info = await fetchDay()
   } catch {
     return
   }
+  backdropW = 0
   const {course, par} = dailyCourse(info.day)
   title.textContent = `${prettyDay(info.day)} · ${course.name}`
   const parts = [`${course.theme.name}`, `🥇 par ${formatTime(par.gold)}`]
@@ -116,7 +175,6 @@ async function init(): Promise<void> {
         ? `🔥 ${info.streak}-day streak, fly today to keep it`
         : `🔥 ${info.streak}-day streak`,
     )
-  if (today && info.me) parts.push(`new course in ${untilNextDay()}`)
   stats.textContent = parts.join(' · ')
   const medals = ['🥇', '🥈', '🥉']
   podium.textContent = info.yesterday.length
@@ -132,8 +190,13 @@ async function init(): Promise<void> {
   if (rival) startBtn.textContent = `Chase u/${rival}`
   else if (info.me) startBtn.textContent = 'Beat your ghost'
   else if (info.day !== info.today) startBtn.textContent = 'Fly this course'
-  draw()
+  renderSplash()
 }
 
-window.addEventListener('resize', draw)
+window.addEventListener('resize', () => {
+  backdropW = 0
+  renderSplash()
+})
+setInterval(renderCountdown, 1000)
+requestAnimationFrame(loop)
 void init()

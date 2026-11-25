@@ -12,7 +12,7 @@ import {
 } from '../shared/api.ts'
 import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {addDays, dayKey} from '../shared/day.ts'
-import type {RunInput} from '../shared/sim.ts'
+import {type RunInput, simulate} from '../shared/sim.ts'
 import {installMemoryRedis} from './memoryRedis.ts'
 import {onReq} from './server.ts'
 
@@ -204,6 +204,69 @@ test('sharing posts the best time as a comment', async () => {
   assert.equal(day.json.myComment, json.commentUrl)
   const anon = await call<ErrorRsp>(Endpoint.Share, {body: {day: today}})
   assert.equal(anon.status, 401)
+})
+
+test('the server replays the input and ignores a client-supplied time', async () => {
+  const input = best(today)
+  const flown = simulate(dailyCourse(today).course, input)
+  const {json} = await call<RunRsp>(Endpoint.Run, {
+    user: 'nils',
+    body: {day: today, input, frames: 1, status: 'finished'},
+  })
+  assert.equal(json.status, 'finished')
+  assert.equal(json.frames, flown.frames)
+  assert.notEqual(json.frames, 1)
+  const again = await call<RunRsp>(Endpoint.Run, {
+    user: 'nils',
+    body: {day: today, input, frames: 1},
+  })
+  assert.equal(again.json.frames, flown.frames)
+  assert.equal(again.json.improved, false)
+})
+
+test('bad toggle lists are rejected before they can rank', async () => {
+  const bad = [
+    {lx: -90, ly: 40, toggles: [5, 5]},
+    {lx: -90, ly: 40, toggles: [9, 3]},
+    {lx: -90, ly: 40, toggles: [1.5]},
+    {lx: -90, ly: 40, toggles: Array.from({length: 4001}, (_, i) => i)},
+  ]
+  for (const input of bad) {
+    const {status, json} = await call<ErrorRsp>(Endpoint.Run, {
+      user: 'mina',
+      body: {day: today, input},
+    })
+    assert.equal(status, 400)
+    assert.equal(json.error, 'bad input')
+  }
+  const day = await call<DayRsp>(Endpoint.Day)
+  assert.equal(
+    day.json.board.some(b => b.name === 'mina'),
+    false,
+  )
+})
+
+test('a day in the body cannot score a different course', async () => {
+  const other = addDays(today, -2)
+  const input = best(today)
+  const {json} = await call<RunRsp>(Endpoint.Run, {
+    user: 'otto',
+    body: {day: other, input},
+  })
+  assert.equal(json.frames, simulate(dailyCourse(today).course, input).frames)
+  const todayBoard = await call<DayRsp>(Endpoint.Day, {user: 'otto'})
+  const otherBoard = await call<DayRsp>(Endpoint.Day, {
+    user: 'otto',
+    day: other,
+  })
+  assert.equal(
+    todayBoard.json.board.some(b => b.name === 'otto'),
+    true,
+  )
+  assert.equal(
+    otherBoard.json.board.some(b => b.name === 'otto'),
+    false,
+  )
 })
 
 test('unknown routes 404', async () => {

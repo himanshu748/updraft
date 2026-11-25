@@ -39,3 +39,16 @@ export function untilNextDay(now: Date = new Date()): string {
   const m = mins % 60
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
 }
+
+/** Seconds left until the next UTC midnight, as "7h 12m 04s". Never reads 0. */
+export function countdown(now: Date = new Date()): string {
+  const next = Date.parse(`${addDays(dayKey(now), 1)}T00:00:00Z`)
+  const secs = Math.max(1, Math.ceil((next - now.getTime()) / 1000))
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  if (h) return `${h}h ${pad(m)}m ${pad(s)}s`
+  if (m) return `${m}m ${pad(s)}s`
+  return `${s}s`
+}
