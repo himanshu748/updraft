@@ -1,50 +1,28 @@
 # Updraft
 
-A daily paper-plane race on Reddit, built with Devvit Web for the Reddit Game of the Day 2026 hackathon.
+**A daily race needs a course everyone can play and a time everyone can trust.**
 
-Every day there is one hand-tuned wind course: thermals, wind bands, boost rings and drifting balloons over rolling hills. Throw your plane, keep it in the air, and race the ghosts of everyone who flew today. The course never changes during the day; you just get faster.
+<img src="docs/preview.jpg" width="640" alt="Updraft paper plane ready to launch on the daily course">
 
-## Play it
+Updraft is a paper-plane race inside Reddit. Ride thermals, hit boost rings, and
+race your best ghost or the fastest pilots on the day's course.
 
-- Demo subreddit: [r/updraft_daily_dev](https://www.reddit.com/r/updraft_daily_dev/) (a new course is posted there every day at 00:01 UTC)
-- App listing: [developers.reddit.com/apps/updraft-daily](https://developers.reddit.com/apps/updraft-daily)
+## How it uses Devvit
 
-Open the day's post and press **Throw** (or **Beat your ghost** once you have a time).
+Devvit Web puts the race inside a Reddit post. A scheduled job posts the daily
+course, and Devvit Redis stores times, ghosts, and streaks. The server replays the
+same flight inputs before recording a leaderboard time.
 
-## How to play
+## Quickstart
 
-- **Throw:** drag back from the plane (like a slingshot) and let go. The dotted arc previews your throw.
-- **Fly:** hold anywhere to pull the nose up and climb; let go and the plane settles into a glide.
-- Ride thermals (warm columns) for height, fly through rings for speed, and dodge the balloons.
-- Reach the finish gate as fast as you can. Gold, silver and bronze par times are set from the day's course.
-- Keyboard: Space or Up arrow throws and climbs.
-
-## Reddit-native bits
-
-- A new course post every day (scheduled at 00:01 UTC), plus a moderator menu item to post it on demand.
-- Old posts keep their own course and leaderboard, so any day can be replayed.
-- Ghosts of today's fastest pilots and your own best fly alongside you.
-- Daily leaderboard, "faster than N% of pilots", streaks with user flair, and a one-tap comment with your time.
-- Logged-out players can fly every course; logging in saves times and ghosts.
-
-## Fair times
-
-Runs are deterministic: the client sends only the throw and the frames where you pressed or let go. The server replays that input through the same simulation (`src/shared/sim.ts`) and records the time it computes, so a time on the board is a time that was actually flown, and that same input drives your ghost.
-
-## Development
+From a fresh clone with Node 24 or newer:
 
 ```sh
-npm install
-npm run preview    # local browser preview with in-memory Redis and seeded ghosts: http://localhost:5180
-npm test           # types, lint, unit tests
-npm run playtest   # build, upload and install on your test subreddit
-npm run publish    # upload a new version for review
+npm ci && npm run preview
 ```
 
-Code layout: `src/shared` (course generator, flight sim, autopilot that sets par times), `src/server` (Devvit server routes and Redis storage), `src/client` (canvas renderer, game and splash screens), `public` (HTML and CSS).
+Open http://localhost:5180 for a local race with seeded ghosts.
 
-No microphone, camera or recorded media are used. Sounds are synthesized in the browser.
-
-## License
-
-BSD-3-Clause, based on Reddit's Devvit bare template.
+[Play on Reddit](https://www.reddit.com/r/updraft_daily_dev/) ·
+[Video](https://youtu.be/KKe-zw4jUCc) · [Devpost](https://devpost.com/software/updraft-vjakg5) ·
+[Development](docs/development.md) · [BSD 3-Clause](LICENSE)
