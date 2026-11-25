@@ -2,11 +2,11 @@
 
 Use Node 24 or newer. From the repo root:
 
-~~~sh
+```sh
 npm ci
 npm run preview
 npm test
-~~~
+```
 
 The preview at http://localhost:5180 uses in-memory Redis and seeded ghosts.
 `npm test` checks types and formatting, runs the unit tests, and builds the client
