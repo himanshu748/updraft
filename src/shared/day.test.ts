@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {untilNextDay} from './day.ts'
+import {countdown, untilNextDay} from './day.ts'
 
 test('untilNextDay counts down to the next UTC midnight', () => {
   assert.equal(untilNextDay(new Date('2026-11-20T16:48:00Z')), '7h 12m')
@@ -8,4 +8,11 @@ test('untilNextDay counts down to the next UTC midnight', () => {
   assert.equal(untilNextDay(new Date('2026-11-20T23:47:30Z')), '13m')
   assert.equal(untilNextDay(new Date('2026-11-20T23:59:59Z')), '1m')
   assert.equal(untilNextDay(new Date('2026-12-31T00:00:00Z')), '24h 00m')
+})
+
+test('countdown includes seconds until the next UTC midnight', () => {
+  assert.equal(countdown(new Date('2026-11-20T16:48:00Z')), '7h 12m 00s')
+  assert.equal(countdown(new Date('2026-11-20T23:47:30Z')), '12m 30s')
+  assert.equal(countdown(new Date('2026-11-20T23:59:59.100Z')), '1s')
+  assert.equal(countdown(new Date('2026-12-31T00:00:00Z')), '24h 00m 00s')
 })

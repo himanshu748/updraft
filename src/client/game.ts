@@ -2,11 +2,11 @@ import {navigateTo, showLoginPrompt, showToast} from '@devvit/web/client'
 import type {DayRsp, Ghost, RunRsp} from '../shared/api.ts'
 import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {
+  countdown,
   type DayKey,
   dayKey,
   formatTime,
   prettyDay,
-  untilNextDay,
 } from '../shared/day.ts'
 import {
   Flight,
@@ -16,6 +16,7 @@ import {
   type RunInput,
 } from '../shared/sim.ts'
 import {fetchDay, postRun, postShare} from './fetch.ts'
+import {drawScraps, type Scrap, spawnBurst, stepScraps} from './fx.ts'
 import {
   type Camera,
   fitScale,
@@ -25,6 +26,7 @@ import {
 } from './render.ts'
 import {leadSeconds, pickRival} from './rival.ts'
 import {Sfx} from './sfx.ts'
+import {coachedThrow, resolveThrow} from './throw.ts'
 
 type Mode = 'loading' | 'aim' | 'flying' | 'done'
 
@@ -57,10 +59,15 @@ const hud = {
   board: $('board'),
   boardHint: $('board-hint'),
   rival: $('rival'),
+  next: $('next'),
 }
 
 const sfx = new Sfx()
 const muteKey = 'updraft:muted'
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+const scraps: Scrap[] = []
+const paper = '#fffaf3'
+let frameDt = 1 / 60
 let day: DayKey = dayKey()
 let info: DayRsp | undefined
 let scene: Scene
@@ -244,9 +251,10 @@ function reset(): void {
   hud.rival.textContent = rival ? `vs ${pilotName(rival)}` : ''
   mode = 'aim'
   hud.card.hidden = true
-  hud.hint.textContent = 'Drag back and let go, or press Space'
+  hud.hint.textContent = throwHint()
   hud.hint.hidden = false
   hud.time.textContent = formatTime(0)
+  renderNext()
 }
 
 function launch(): void {
@@ -255,6 +263,7 @@ function launch(): void {
   mode = 'flying'
   hud.hint.textContent = 'Hold to climb, let go to glide'
   sfx.whoosh()
+  if (!reduceMotion) spawnBurst(scraps, flight.x, flight.y, paper, 12, 140)
   setTimeout(() => {
     if (mode === 'flying') hud.hint.hidden = true
   }, 2500)
@@ -267,6 +276,7 @@ function stepAll(): void {
   if (flight.ringsTaken > rings) {
     sfx.ring()
     navigator.vibrate?.(15)
+    if (!reduceMotion) spawnBurst(scraps, flight.x, flight.y, '#ffd23f', 8, 110)
   }
   if (flight.frame % 2 === 0) pushTrail(trail, flight.x, flight.y, 240)
   for (const g of ghosts) {
@@ -304,6 +314,7 @@ async function finish(): Promise<void> {
   else {
     sfx.crash()
     navigator.vibrate?.([30, 40, 30])
+    if (!reduceMotion) spawnBurst(scraps, flight.x, flight.y, paper, 16, 160)
   }
   const run = flight
   let rsp: RunRsp | undefined
@@ -388,15 +399,11 @@ function showCard(rsp: RunRsp | undefined): void {
   const streak = rsp?.streak ?? 0
   if (info && info.day === info.today) {
     const flownToday = ok || Boolean(rsp?.best ?? info.me)
-    const next = `New course in ${untilNextDay()}`
     if (!flownToday && streak)
       lines.push(
         `<div>🔥 Land a run today to keep your ${streak}-day streak</div>`,
       )
-    else {
-      if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
-      if (flownToday) lines.push(`<div class="dim">${next}</div>`)
-    }
+    else if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
   } else if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
   hud.cardBody.innerHTML = lines.join('')
   const loggedIn = Boolean(info?.username)
@@ -404,6 +411,7 @@ function showCard(rsp: RunRsp | undefined): void {
   renderShare()
   hud.login.hidden = loggedIn || !ok
   hud.card.hidden = false
+  renderNext()
   setTimeout(() => {
     if (mode !== 'done') return
     staleSpace = spaceHeld
@@ -414,6 +422,7 @@ function showCard(rsp: RunRsp | undefined): void {
 function loop(now: number): void {
   const dt = Math.min(0.25, (now - (last || now)) / 1000)
   last = now
+  frameDt = dt
   if (mode === 'flying') {
     acc += dt
     while (acc >= 1 / fps && mode === 'flying') {
@@ -423,6 +432,7 @@ function loop(now: number): void {
     hud.time.textContent = formatTime(flight.frame)
     if (flight.frame % 6 === 0) renderLead()
   }
+  if (!reduceMotion) stepScraps(scraps, dt)
   draw(now)
   requestAnimationFrame(loop)
 }
@@ -434,8 +444,11 @@ function camera(): Camera {
   const viewH = h / scale
   const targetX = flight.x - (w / scale) * 0.28
   const targetY = Math.max(-30, Math.min(760 - viewH, flight.y - viewH * 0.5))
-  camX += (targetX - camX) * (mode === 'aim' ? 1 : 0.2)
-  camY += (Math.max(-30, targetY) - camY) * (mode === 'aim' ? 1 : 0.1)
+  const snap = mode === 'aim' || reduceMotion
+  const kx = snap ? 1 : 1 - Math.exp(-8 * frameDt)
+  const ky = snap ? 1 : 1 - Math.exp(-5 * frameDt)
+  camX += (targetX - camX) * kx
+  camY += (Math.max(-30, targetY) - camY) * ky
   return {x: camX, y: camY, scale, w, h, dpr: w / (canvas.clientWidth || w)}
 }
 
@@ -458,17 +471,19 @@ function draw(now: number): void {
   }
   const crashed = mode === 'done' && flight.status !== 'finished'
   const wobble = crashed ? Math.min(1, (now - doneAt) / 500) : 0
+  const bob = mode === 'aim' && !reduceMotion ? Math.sin(now / 320) * 3.5 : 0
   planes.push({
     x: flight.x,
-    y: flight.y - wobble * 6,
+    y: flight.y + bob - wobble * 6,
     hx: crashed ? 0.6 : flight.hx,
     hy: crashed ? -0.8 : flight.hy,
-    color: '#ffffff',
+    color: paper,
     alpha: 1,
     trail,
   })
   scene.draw(ctx, cam, frame, planes, flight.rings)
-  if (mode === 'aim') drawAim(cam)
+  drawScraps(ctx, cam, scraps)
+  if (mode === 'aim') drawAim(cam, bob)
   const pct = flight.progress * 100
   hud.bar.style.setProperty('--p', `${pct}%`)
 }
@@ -504,10 +519,10 @@ function drawThrowCue(u: number, px: number, py: number): void {
   ctx.lineJoin = 'miter'
 }
 
-function drawAim(cam: Camera): void {
+function drawAim(cam: Camera, bob: number): void {
   const u = canvas.width / (canvas.clientWidth || canvas.width)
   const px = (flight.x - cam.x) * cam.scale
-  const py = cam.h - (flight.y - cam.y) * cam.scale
+  const py = cam.h - (flight.y + bob - cam.y) * cam.scale
   if (!aimFrom || (aim.lx === 0 && aim.ly === 0)) {
     if (!aimFrom) drawThrowCue(u, px, py)
     return
@@ -567,11 +582,23 @@ function move(x: number, y: number): void {
   aim = {lx, ly}
 }
 
-function release(): void {
+function release(x?: number, y?: number, cancel = false): void {
   if (mode === 'aim' && aimFrom) {
+    const from = aimFrom
     aimFrom = undefined
-    if (Math.hypot(aim.lx, aim.ly) > maxLaunch * 0.12 && aim.lx < 0) launch()
-    else {
+    if (cancel || x === undefined || y === undefined) {
+      aim = {lx: 0, ly: 0}
+      return
+    }
+    const thrown = resolveThrow(
+      aim.lx,
+      aim.ly,
+      Math.hypot(x - from.x, y - from.y),
+    )
+    if (thrown) {
+      aim = thrown
+      launch()
+    } else {
       aim = {lx: 0, ly: 0}
       hud.hint.textContent = 'Pull back to the left, then let go'
     }
@@ -583,8 +610,10 @@ canvas.addEventListener('pointerdown', ev => {
   press(ev.clientX, ev.clientY)
 })
 canvas.addEventListener('pointermove', ev => move(ev.clientX, ev.clientY))
-canvas.addEventListener('pointerup', () => release())
-canvas.addEventListener('pointercancel', () => release())
+canvas.addEventListener('pointerup', ev => release(ev.clientX, ev.clientY))
+canvas.addEventListener('pointercancel', () =>
+  release(undefined, undefined, true),
+)
 canvas.addEventListener('contextmenu', ev => ev.preventDefault())
 window.addEventListener('keydown', ev => {
   if (ev.repeat) return
@@ -593,7 +622,7 @@ window.addEventListener('keydown', ev => {
     ev.preventDefault()
     sfx.unlock()
     if (mode === 'aim') {
-      aim = {lx: -95, ly: 35}
+      aim = {...coachedThrow}
       launch()
     } else if (mode === 'flying') holding = true
     else if (mode === 'done' && performance.now() - doneAt > 600) reset()
@@ -680,7 +709,24 @@ function toast(text: string): void {
 try {
   if (localStorage.getItem(muteKey) === '1') setSound(false)
 } catch {}
+function throwHint(): string {
+  const touch =
+    matchMedia('(pointer: coarse)').matches ||
+    navigator.maxTouchPoints > 0 ||
+    window.innerWidth <= 480
+  return touch
+    ? 'Tap to throw. Drag back to aim.'
+    : 'Tap to throw, drag back to aim, or press Space'
+}
+
+function renderNext(): void {
+  const show = mode === 'done' && !hud.card.hidden
+  hud.next.hidden = !show
+  if (show) hud.next.textContent = `Next course in ${countdown()}`
+}
+
 resize()
+setInterval(renderNext, 1000)
 void init()
 
 function escapeHtml(text: string): string {

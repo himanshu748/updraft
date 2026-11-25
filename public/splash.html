@@ -8,6 +8,7 @@
     >
     <title>Updraft</title>
     <link rel="modulepreload" href="splash.js">
+    <link rel="modulepreload" href="game.js">
     <link rel="stylesheet" href="style.css">
   </head>
   <body class="splash">
@@ -16,9 +17,11 @@
       <div class="plate">
         <div class="brand">✈ Updraft</div>
         <div id="title" class="title">Today's course</div>
-        <div id="stats" class="stats">
+        <div id="blurb" class="stats">
           One throw. One wind course. Race everyone's ghost.
         </div>
+        <div id="stats" class="stats"></div>
+        <div id="countdown" class="countdown">Next course in …</div>
         <div id="podium" class="podium" hidden></div>
       </div>
       <button id="start-btn" type="button" class="primary big-btn">
