@@ -31,6 +31,7 @@ import {
   dbBest,
   dbBoard,
   dbClaimDayPost,
+  dbClaimShare,
   dbCountFlight,
   dbDayPost,
   dbFlairDay,
@@ -42,6 +43,7 @@ import {
   dbPlayers,
   dbRank,
   dbReleaseDayPost,
+  dbReleaseShare,
   dbSaveRun,
   dbSetDayPost,
   dbSetFlairDay,
@@ -263,13 +265,30 @@ async function routeShare(req: ShareReq): Promise<ShareRsp> {
   const {par} = dailyCourse(day)
   const medal = medalFor(best, par)
   const badge = {gold: '🥇', silver: '🥈', bronze: '🥉', none: '✈️'}[medal]
-  const comment = await reddit.submitComment({
-    id: t3,
-    text: `${badge} Flew ${prettyDay(day)}'s Updraft in **${formatTime(best)}**, #${rank} of ${await dbPlayers(day)}. Catch my ghost!`,
-    runAs: 'USER',
-  })
+  const players = await dbPlayers(day)
+  if (!(await dbClaimShare(day, user, best))) {
+    const receipt = await dbShare(day, user)
+    if (receipt && receipt.frames <= best)
+      return {commentUrl: receipt.url, existing: true}
+    throw new HttpError(409, 'share already started; check the post comments')
+  }
+  let comment: Awaited<ReturnType<typeof reddit.submitComment>>
+  try {
+    comment = await reddit.submitComment({
+      id: t3,
+      text: `${badge} Flew ${prettyDay(day)}'s Updraft in **${formatTime(best)}**, #${rank} of ${players}. Catch my ghost!`,
+      runAs: 'USER',
+    })
+  } catch (err) {
+    await dbReleaseShare(day, user, best)
+    throw err
+  }
   const url = new URL(comment.permalink, 'https://www.reddit.com/').toString()
-  await dbSetShare(day, user, {frames: best, url})
+  try {
+    await dbSetShare(day, user, {frames: best, url})
+  } catch (err) {
+    console.warn(`share receipt skipped; ${err}`)
+  }
   return {commentUrl: url, existing: false}
 }
 

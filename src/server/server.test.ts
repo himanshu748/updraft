@@ -289,3 +289,45 @@ test('unknown routes 404', async () => {
   assert.equal((await call<ErrorRsp>('api/nope')).status, 404)
   assert.equal((await call<ErrorRsp>(Endpoint.Day, {body: {}})).status, 404)
 })
+
+test('one share posts while a concurrent request and a missing receipt cannot post again', async () => {
+  const user = 'concurrent-share'
+  await call<RunRsp>(Endpoint.Run, {user, body: {input: best(today)}})
+  const saveHash = redis.hSet
+  const postComment = reddit.submitComment
+  let signalSubmit = () => {}
+  const submitted = new Promise<void>(resolve => {
+    signalSubmit = resolve
+  })
+  let releasePost = () => {}
+  const posted = new Promise<void>(resolve => {
+    releasePost = resolve
+  })
+  let posts = 0
+  reddit.submitComment = async opts => {
+    posts++
+    signalSubmit()
+    await posted
+    return postComment(opts)
+  }
+  redis.hSet = async (key, values) => {
+    if (key === `shares:${today}`) throw Error('share receipt unavailable')
+    return saveHash(key, values)
+  }
+  const share = () => call<ShareRsp>(Endpoint.Share, {user, body: {day: today}})
+  try {
+    const first = share()
+    await Promise.race([submitted, first])
+    try {
+      assert.equal((await share()).status, 409)
+    } finally {
+      releasePost()
+    }
+    assert.equal((await first).status, 200)
+    assert.equal((await share()).status, 409)
+    assert.equal(posts, 1)
+  } finally {
+    reddit.submitComment = postComment
+    redis.hSet = saveHash
+  }
+})
