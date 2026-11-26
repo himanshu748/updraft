@@ -185,7 +185,9 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
   const {course, par} = dailyCourse(day)
   const result = simulate(course, req.input)
   const user = context.username
-  await dbCountFlight(day)
+  await dbCountFlight(day).catch((err: unknown) => {
+    console.warn(`flight count skipped; ${err}`)
+  })
   const finished = result.status === 'finished'
 
   let improved = false

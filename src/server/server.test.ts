@@ -331,3 +331,26 @@ test('one share posts while a concurrent request and a missing receipt cannot po
     redis.hSet = saveHash
   }
 })
+
+test('a failed flight counter does not discard a verified finish', async () => {
+  const user = 'counter-failure'
+  const increment = redis.incrBy
+  redis.incrBy = async (key, amount) => {
+    if (key === `flights:${today}`) throw Error('counter unavailable')
+    return increment(key, amount)
+  }
+  try {
+    const input = best(today)
+    const {status, json} = await call<RunRsp>(Endpoint.Run, {
+      user,
+      body: {day: today, input},
+    })
+    assert.equal(status, 200)
+    assert.equal(json.saved, true)
+    assert.equal(json.improved, true)
+    const day = await call<DayRsp>(Endpoint.Day, {user})
+    assert.equal(day.json.me?.frames, json.frames)
+  } finally {
+    redis.incrBy = increment
+  }
+})
