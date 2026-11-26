@@ -204,7 +204,12 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
   const players = await dbPlayers(day)
   const others =
     players - (user && (await dbBest(day, user)) !== undefined ? 1 : 0)
-  const slower = finished ? await dbSlowerThan(day, result.frames) : 0
+  const slower = finished
+    ? await dbSlowerThan(day, result.frames).catch((err: unknown) => {
+        console.warn(`field comparison unavailable; ${err}`)
+        return null
+      })
+    : 0
   const best = user ? ((await dbBest(day, user)) ?? null) : null
   return {
     status: result.status,
@@ -218,7 +223,11 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
     rank: user ? ((await dbRank(day, user)) ?? null) : null,
     players,
     beat:
-      others > 0 ? Math.round((100 * Math.min(slower, others)) / others) : 100,
+      slower === null
+        ? null
+        : others > 0
+          ? Math.round((100 * Math.min(slower, others)) / others)
+          : 100,
     streak,
   }
 }

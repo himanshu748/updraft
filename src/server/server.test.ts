@@ -355,6 +355,32 @@ test('a failed flight counter does not discard a verified finish', async () => {
   }
 })
 
+test('an unavailable field comparison does not discard a verified finish', async () => {
+  const user = 'field-comparison-failure'
+  const range = redis.zRange
+  redis.zRange = async (key, start, stop, options) => {
+    if (key === `board:${today}` && options?.by === 'score')
+      throw Error('field comparison unavailable')
+    return range(key, start, stop, options)
+  }
+  try {
+    const input = best(today)
+    const {status, json} = await call<RunRsp>(Endpoint.Run, {
+      user,
+      body: {day: today, input},
+    })
+    assert.equal(status, 200)
+    assert.equal(json.saved, true)
+    assert.equal(json.improved, true)
+    assert.equal(json.beat, null)
+    assert.equal(json.best, json.frames)
+    const day = await call<DayRsp>(Endpoint.Day, {user})
+    assert.equal(day.json.me?.frames, json.frames)
+  } finally {
+    redis.zRange = range
+  }
+})
+
 for (const failure of ['read', 'write'] as const) {
   test(`a failed streak ${failure} does not discard a verified finish`, async () => {
     const user = `streak-${failure}-failure`

@@ -40,8 +40,8 @@ export type RunRsp = {
   best: number | null
   rank: number | null
   players: number
-  /** Share of other finishers this flight beat, 0-100. */
-  beat: number
+  /** Share of other finishers this flight beat, 0-100. Null if unavailable. */
+  beat: number | null
   /** Null when the streak could not be confirmed. */
   streak: number | null
 }
