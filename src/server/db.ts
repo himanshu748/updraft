@@ -150,6 +150,26 @@ export async function dbSetDayPost(day: DayKey, t3: T3): Promise<void> {
 
 export type Share = {frames: number; url: string}
 
+const shareClaimKey = (day: DayKey, user: string, frames: number): string =>
+  `sharelock:${day}:${user}:${frames}`
+
+/** Only one request may submit a comment for this exact saved time. */
+export async function dbClaimShare(
+  day: DayKey,
+  user: string,
+  frames: number,
+): Promise<boolean> {
+  return (await redis.incrBy(shareClaimKey(day, user, frames), 1)) === 1
+}
+
+export async function dbReleaseShare(
+  day: DayKey,
+  user: string,
+  frames: number,
+): Promise<void> {
+  await redis.set(shareClaimKey(day, user, frames), '0')
+}
+
 /** The comment a user last posted about their time on `day`. */
 export async function dbShare(
   day: DayKey,
