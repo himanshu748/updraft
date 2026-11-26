@@ -124,6 +124,34 @@ test('the server re-flies the input and ranks the time it measured', async () =>
   assert.equal(day.json.me?.frames, expected)
 })
 
+test('unreadable saved replays do not block the daily course or other ghosts', async () => {
+  const day = addDays(today, -11)
+  const input = best(day)
+  for (const user of ['damaged-replay', 'invalid-replay', 'valid-replay']) {
+    const run = await call<RunRsp>(Endpoint.Run, {
+      user,
+      day,
+      body: {day, input},
+    })
+    assert.equal(run.json.saved, true)
+  }
+  await redis.hSet(`runs:${day}`, {
+    'damaged-replay': '{',
+    'invalid-replay': JSON.stringify({lx: 0}),
+  })
+
+  const rsp = await call<DayRsp>(Endpoint.Day, {user: 'damaged-replay', day})
+  assert.equal(rsp.status, 200)
+  assert.equal(rsp.json.day, day)
+  assert.ok(rsp.json.board.some(entry => entry.name === 'damaged-replay'))
+  assert.ok(rsp.json.board.some(entry => entry.name === 'invalid-replay'))
+  assert.deepEqual(
+    rsp.json.ghosts.map(ghost => ghost.name),
+    ['valid-replay'],
+  )
+  assert.equal(rsp.json.me, null)
+})
+
 test('a crash is not saved and a slower finish ranks behind', async () => {
   const crash = await call<RunRsp>(Endpoint.Run, {
     user: 'bob',

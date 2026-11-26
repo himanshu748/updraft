@@ -2,7 +2,7 @@ import {redis} from '@devvit/web/server'
 import type {T3} from '@devvit/web/shared'
 import type {BoardEntry, Ghost} from '../shared/api.ts'
 import {addDays, type DayKey} from '../shared/day.ts'
-import type {RunInput} from '../shared/sim.ts'
+import {isValidInput, type RunInput} from '../shared/sim.ts'
 
 const boardKey = (day: DayKey): string => `board:${day}`
 const runsKey = (day: DayKey): string => `runs:${day}`
@@ -60,12 +60,21 @@ export async function dbBoard(day: DayKey, n: number): Promise<BoardEntry[]> {
   return rows.map((r, i) => ({rank: i + 1, name: r.member, frames: r.score}))
 }
 
+function decodeReplay(json: string | null | undefined): RunInput | undefined {
+  if (!json) return undefined
+  try {
+    const input: unknown = JSON.parse(json)
+    return isValidInput(input) ? input : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export async function dbInput(
   day: DayKey,
   user: string,
 ): Promise<RunInput | undefined> {
-  const json = await redis.hGet(runsKey(day), user)
-  return json ? (JSON.parse(json) as RunInput) : undefined
+  return decodeReplay(await redis.hGet(runsKey(day), user))
 }
 
 export async function dbGhosts(
@@ -79,9 +88,8 @@ export async function dbGhosts(
   )
   const ghosts: Ghost[] = []
   board.forEach((b, i) => {
-    const json = inputs[i]
-    if (json)
-      ghosts.push({name: b.name, frames: b.frames, input: JSON.parse(json)})
+    const input = decodeReplay(inputs[i])
+    if (input) ghosts.push({name: b.name, frames: b.frames, input})
   })
   return ghosts
 }
