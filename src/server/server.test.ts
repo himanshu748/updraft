@@ -295,13 +295,19 @@ test('one share posts while a concurrent request and a missing receipt cannot po
   await call<RunRsp>(Endpoint.Run, {user, body: {input: best(today)}})
   const saveHash = redis.hSet
   const postComment = reddit.submitComment
-  const submit = Promise.withResolvers<void>()
-  const posted = Promise.withResolvers<void>()
+  let signalSubmit = () => {}
+  const submitted = new Promise<void>(resolve => {
+    signalSubmit = resolve
+  })
+  let releasePost = () => {}
+  const posted = new Promise<void>(resolve => {
+    releasePost = resolve
+  })
   let posts = 0
   reddit.submitComment = async opts => {
     posts++
-    submit.resolve()
-    await posted.promise
+    signalSubmit()
+    await posted
     return postComment(opts)
   }
   redis.hSet = async (key, values) => {
@@ -311,11 +317,11 @@ test('one share posts while a concurrent request and a missing receipt cannot po
   const share = () => call<ShareRsp>(Endpoint.Share, {user, body: {day: today}})
   try {
     const first = share()
-    await Promise.race([submit.promise, first])
+    await Promise.race([submitted, first])
     try {
       assert.equal((await share()).status, 409)
     } finally {
-      posted.resolve()
+      releasePost()
     }
     assert.equal((await first).status, 200)
     assert.equal((await share()).status, 409)
