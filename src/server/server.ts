@@ -86,7 +86,11 @@ export async function onReq(
     }
     const msg = `server error; ${err instanceof Error ? err.stack : err}`
     console.error(msg)
-    writeJson<ErrorRsp>(500, {error: msg, status: 500}, rspMsg)
+    writeJson<ErrorRsp>(
+      500,
+      {error: 'internal server error', status: 500},
+      rspMsg,
+    )
   }
 }
 
