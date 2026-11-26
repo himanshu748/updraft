@@ -380,7 +380,7 @@ function showCard(rsp: RunRsp | undefined): void {
     }
     if (rsp?.rank)
       lines.push(`<div>#${rsp.rank} of ${rsp.players} pilots today</div>`)
-    if (rsp && rsp.players > 1)
+    if (rsp && rsp.players > 1 && rsp.beat !== null)
       lines.push(`<div>Faster than ${rsp.beat}% of the field</div>`)
     if (rsp?.best && !rsp.improved)
       lines.push(`<div class="dim">Your best: ${formatTime(rsp.best)}</div>`)
