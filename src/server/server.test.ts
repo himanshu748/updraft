@@ -269,6 +269,16 @@ test('a day in the body cannot score a different course', async () => {
   )
 })
 
+test('unexpected failures return a generic error to the player', async t => {
+  t.mock.method(console, 'error', () => {})
+  t.mock.method(redis, 'zRange', async () => {
+    throw new Error('redis diagnostic')
+  })
+  const {status, json} = await call<ErrorRsp>(Endpoint.Day)
+  assert.equal(status, 500)
+  assert.deepEqual(json, {error: 'internal server error', status: 500})
+})
+
 test('unknown routes 404', async () => {
   assert.equal((await call<ErrorRsp>('api/nope')).status, 404)
   assert.equal((await call<ErrorRsp>(Endpoint.Day, {body: {}})).status, 404)
