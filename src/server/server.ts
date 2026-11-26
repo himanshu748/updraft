@@ -190,15 +190,16 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
   })
   const finished = result.status === 'finished'
 
-  let improved = false
-  let streak = user ? await dbStreak(user, today) : 0
-  if (finished && user) {
-    improved = await dbSaveRun(day, user, result.frames, req.input)
-    if (day === today) {
-      const before = streak
-      streak = await dbMarkFinished(user, today)
-      if (streak !== before || improved) await syncFlair(user, streak, today)
-    }
+  const improved =
+    finished && user
+      ? await dbSaveRun(day, user, result.frames, req.input)
+      : false
+  let streak = user ? await dbStreak(user, today).catch(unavailableStreak) : 0
+  if (finished && user && day === today) {
+    const before = streak
+    streak = await dbMarkFinished(user, today).catch(unavailableStreak)
+    if (streak !== null && (streak !== before || improved))
+      await syncFlair(user, streak, today)
   }
   const players = await dbPlayers(day)
   const others =
@@ -220,6 +221,11 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
       others > 0 ? Math.round((100 * Math.min(slower, others)) / others) : 100,
     streak,
   }
+}
+
+function unavailableStreak(error: unknown): null {
+  console.warn(`streak unavailable; ${error}`)
+  return null
 }
 
 async function syncFlair(
