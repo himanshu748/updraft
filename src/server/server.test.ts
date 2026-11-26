@@ -354,3 +354,41 @@ test('a failed flight counter does not discard a verified finish', async () => {
     redis.incrBy = increment
   }
 })
+
+for (const failure of ['read', 'write'] as const) {
+  test(`a failed streak ${failure} does not discard a verified finish`, async () => {
+    const user = `streak-${failure}-failure`
+    const key = `streak:${user}`
+    const readHash = redis.hGetAll
+    const writeHash = redis.hSet
+    if (failure === 'read') {
+      redis.hGetAll = async k => {
+        if (k === key) throw Error('streak read unavailable')
+        return readHash(k)
+      }
+    } else {
+      redis.hSet = async (k, values) => {
+        if (k === key) throw Error('streak write unavailable')
+        return writeHash(k, values)
+      }
+    }
+    const body = {day: today, input: best(today)}
+    let frames: number
+    try {
+      const {status, json} = await call<RunRsp>(Endpoint.Run, {user, body})
+      assert.equal(status, 200)
+      assert.equal(json.saved, true)
+      assert.equal(json.improved, true)
+      assert.equal(json.streak, null)
+      frames = json.frames
+    } finally {
+      redis.hGetAll = readHash
+      redis.hSet = writeHash
+    }
+    const day = await call<DayRsp>(Endpoint.Day, {user})
+    assert.equal(day.json.me?.frames, frames)
+    const retry = await call<RunRsp>(Endpoint.Run, {user, body})
+    assert.equal(retry.json.improved, false)
+    assert.equal(retry.json.streak, 1)
+  })
+}

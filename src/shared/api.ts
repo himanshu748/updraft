@@ -42,7 +42,8 @@ export type RunRsp = {
   players: number
   /** Share of other finishers this flight beat, 0-100. */
   beat: number
-  streak: number
+  /** Null when the streak could not be confirmed. */
+  streak: number | null
 }
 
 export type ShareReq = {day: DayKey}

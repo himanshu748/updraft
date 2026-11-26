@@ -142,7 +142,7 @@ test("the next day's post shows yesterday's podium", async () => {
 })
 
 test('streaks count consecutive days and reset after a gap', async () => {
-  const seen: number[] = []
+  const seen: RunRsp['streak'][] = []
   for (const day of ['2026-11-22', '2026-11-23', '2026-11-24', '2026-11-26']) {
     at(`${day}T12:00:00Z`)
     seen.push((await fly('eve', day)).json.streak)
