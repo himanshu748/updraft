@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {countdown, untilNextDay} from './day.ts'
+import {countdown, isDayKey, untilNextDay} from './day.ts'
+
+test('day keys must be real UTC calendar dates', () => {
+  assert.equal(isDayKey('2028-02-29'), true)
+  assert.equal(isDayKey('2026-02-29'), false)
+  assert.equal(isDayKey('2026-04-31'), false)
+  assert.equal(isDayKey('2026-13-01'), false)
+  assert.equal(isDayKey('2026-01-01T00:00:00Z'), false)
+})
 
 test('untilNextDay counts down to the next UTC midnight', () => {
   assert.equal(untilNextDay(new Date('2026-11-20T16:48:00Z')), '7h 12m')
