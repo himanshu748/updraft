@@ -6,7 +6,9 @@ export function dayKey(date: Date = new Date()): DayKey {
 }
 
 export function isDayKey(s: unknown): s is DayKey {
-  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  const ms = Date.parse(`${s}T00:00:00Z`)
+  return Number.isFinite(ms) && dayKey(new Date(ms)) === s
 }
 
 export function addDays(day: DayKey, n: number): DayKey {

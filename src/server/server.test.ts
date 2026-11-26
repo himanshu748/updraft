@@ -279,6 +279,12 @@ test('unexpected failures return a generic error to the player', async t => {
   assert.deepEqual(json, {error: 'internal server error', status: 500})
 })
 
+test('invalid saved post dates fall back to today', async () => {
+  const {status, json} = await call<DayRsp>(Endpoint.Day, {day: '2026-13-01'})
+  assert.equal(status, 200)
+  assert.equal(json.day, today)
+})
+
 test('unknown routes 404', async () => {
   assert.equal((await call<ErrorRsp>('api/nope')).status, 404)
   assert.equal((await call<ErrorRsp>(Endpoint.Day, {body: {}})).status, 404)
