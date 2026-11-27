@@ -214,8 +214,23 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
     console.warn(`player tally unavailable; ${err}`)
     return null
   })
-  const best = user ? ((await dbBest(day, user)) ?? null) : null
-  const others = players === null ? null : players - (best === null ? 0 : 1)
+  const best = user
+    ? await dbBest(day, user).catch((err: unknown) => {
+        console.warn(`personal best unavailable; ${err}`)
+        return null
+      })
+    : undefined
+  const rank = user
+    ? await dbRank(day, user).catch((err: unknown) => {
+        console.warn(`rank unavailable; ${err}`)
+        return null
+      })
+    : undefined
+  // A failed lookup leaves it unknown whether the player is already in the tally.
+  const others =
+    players === null || best === null
+      ? null
+      : players - (best === undefined ? 0 : 1)
   const slower =
     finished && others !== null
       ? await dbSlowerThan(day, result.frames).catch((err: unknown) => {
@@ -231,8 +246,8 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
     medal: finished ? medalFor(result.frames, par) : 'none',
     saved: Boolean(user) && finished,
     improved,
-    best,
-    rank: user ? ((await dbRank(day, user)) ?? null) : null,
+    best: best ?? null,
+    rank: rank ?? null,
     players,
     beat:
       slower === null || others === null
