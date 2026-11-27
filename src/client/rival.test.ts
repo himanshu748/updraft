@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Ghost} from '../shared/api.ts'
+import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {fps} from '../shared/sim.ts'
-import {leadSeconds, pickRival} from './rival.ts'
+import {leadSeconds, pickRival, rivalSplits} from './rival.ts'
 
 const names = ['ace', 'bo', 'cy', 'di']
 const ghost = (name: string, frames: number): Ghost => ({
@@ -53,4 +54,34 @@ test('lead is the x gap in seconds at the current speed', () => {
   assert.equal(leadSeconds(130, 100, 5), 30 / 5 / fps)
   assert.ok(leadSeconds(100, 130, 5) < 0)
   assert.ok(Number.isFinite(leadSeconds(110, 100, 0)))
+})
+
+test('replay splits show when the lead changes between course checkpoints', () => {
+  const {course} = dailyCourse('2026-12-01')
+  const player = autopilot(course)
+  const rival = {...player, lx: player.lx + 5}
+  assert.deepEqual(rivalSplits(course, player, rival), [
+    {percent: 25, delta: -16},
+    {percent: 50, delta: 4},
+    {percent: 75, delta: 106},
+  ])
+  assert.deepEqual(rivalSplits(course, player, player), [
+    {percent: 25, delta: 0},
+    {percent: 50, delta: 0},
+    {percent: 75, delta: 0},
+  ])
+})
+
+test('replay splits omit checkpoints either pilot never reached', () => {
+  const {course} = dailyCourse('2026-12-01')
+  const rival = autopilot(course)
+  const crash = {...rival, lx: rival.lx - 10}
+  assert.deepEqual(rivalSplits(course, crash, rival), [
+    {percent: 25, delta: -34},
+    {percent: 50, delta: -113},
+  ])
+  assert.deepEqual(
+    rivalSplits(course, rival, {...rival, lx: rival.lx + 10}),
+    [],
+  )
 })

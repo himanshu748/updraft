@@ -196,6 +196,28 @@ button[hidden] {
   text-align: left;
   font-size: 14px;
 }
+.splits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.splits li {
+  display: grid;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.splits .ahead span {
+  color: #7dffb0;
+}
+.splits .behind span {
+  color: #ffb3c1;
+}
 .board .row {
   display: grid;
   grid-template-columns: 2em 1fr auto;

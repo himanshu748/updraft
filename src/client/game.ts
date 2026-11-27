@@ -24,7 +24,7 @@ import {
   type PlaneSprite,
   Scene,
 } from './render.ts'
-import {leadSeconds, pickRival} from './rival.ts'
+import {leadSeconds, pickRival, rivalSplits} from './rival.ts'
 import {Sfx} from './sfx.ts'
 import {coachedThrow, resolveThrow} from './throw.ts'
 
@@ -317,6 +317,7 @@ async function finish(): Promise<void> {
     if (!reduceMotion) spawnBurst(scraps, flight.x, flight.y, paper, 16, 160)
   }
   const run = flight
+  const racedGhost = rivalFlight?.ghost
   let rsp: RunRsp | undefined
   try {
     rsp = await postRun({day, input})
@@ -325,7 +326,7 @@ async function finish(): Promise<void> {
   }
   if (rsp?.improved && info) info.myComment = null
   // The player may have restarted (Space) while the run was saving.
-  if (flight === run) showCard(rsp)
+  if (flight === run) showCard(rsp, input, racedGhost)
   try {
     info = await fetchDay()
     renderPar()
@@ -354,7 +355,11 @@ function renderShare(): void {
     : 'Comment my time'
 }
 
-function showCard(rsp: RunRsp | undefined): void {
+function showCard(
+  rsp: RunRsp | undefined,
+  input: RunInput,
+  racedGhost: Ghost | undefined,
+): void {
   const ok = flight.status === 'finished'
   const medal = rsp?.medal ?? 'none'
   const icon = {gold: '🥇', silver: '🥈', bronze: '🥉', none: ok ? '🛬' : '💥'}[
@@ -365,9 +370,9 @@ function showCard(rsp: RunRsp | undefined): void {
     lines.push(`<div class="big">${icon} ${formatTime(flight.frame)}</div>`)
     if (rsp?.improved)
       lines.push('<div class="pill new">New personal best</div>')
-    if (rivalFlight && rival) {
-      const diff = flight.frame - rivalFlight.ghost.frames
-      const who = escapeHtml(pilotName(rival))
+    if (racedGhost) {
+      const diff = flight.frame - racedGhost.frames
+      const who = escapeHtml(pilotName(racedGhost.name))
       if (diff < 0)
         lines.push(
           `<div class="pill win">Beat ${who} by ${formatTime(-diff)}</div>`,
@@ -375,7 +380,7 @@ function showCard(rsp: RunRsp | undefined): void {
       else if (diff === 0) lines.push(`<div>Dead heat with ${who}</div>`)
       else
         lines.push(
-          `<div>${rival === parPilot ? 'The par pilot' : who} was ${formatTime(diff)} faster</div>`,
+          `<div>${racedGhost.name === parPilot ? 'The par pilot' : who} was ${formatTime(diff)} faster</div>`,
         )
     }
     if (rsp?.rank)
@@ -405,6 +410,21 @@ function showCard(rsp: RunRsp | undefined): void {
       )
     else if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
   } else if (streak) lines.push(`<div>🔥 ${streak}-day streak</div>`)
+  if (racedGhost) {
+    const splits = rivalSplits(flight.course, input, racedGhost.input)
+    if (splits.length) {
+      const who = escapeHtml(pilotName(racedGhost.name))
+      const rows = splits.map(({percent, delta}) => {
+        const pace = delta < 0 ? 'ahead' : delta > 0 ? 'behind' : 'tied'
+        const result =
+          delta === 0 ? 'Tied' : `${formatTime(Math.abs(delta))} ${pace}`
+        return `<li class="${pace}"><b>${percent}%</b><span>${result}</span></li>`
+      })
+      lines.push(
+        `<h3>Splits vs ${who}</h3><ul class="splits">${rows.join('')}</ul>`,
+      )
+    }
+  }
   hud.cardBody.innerHTML = lines.join('')
   const loggedIn = Boolean(info?.username)
   hud.share.hidden = !loggedIn || !(rsp?.best ?? info?.me)
