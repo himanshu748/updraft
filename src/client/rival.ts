@@ -1,5 +1,32 @@
 import type {Ghost} from '../shared/api.ts'
-import {fps} from '../shared/sim.ts'
+import type {Course} from '../shared/course.ts'
+import {fps, type RunInput, simulate} from '../shared/sim.ts'
+
+const checkpoints = [25, 50, 75] as const
+
+/** Compare first crossings at the same points on the course. Negative means ahead. */
+export function rivalSplits(course: Course, player: RunInput, rival: RunInput) {
+  function crossings(input: RunInput): number[] {
+    const frames: number[] = []
+    simulate(course, input, flight => {
+      let next = checkpoints[frames.length]
+      while (next !== undefined && flight.progress * 100 >= next) {
+        frames.push(flight.frame)
+        next = checkpoints[frames.length]
+      }
+    })
+    return frames
+  }
+
+  const playerFrames = crossings(player)
+  const rivalFrames = crossings(rival)
+  return checkpoints.flatMap((percent, index) => {
+    const playerFrame = playerFrames[index]
+    const rivalFrame = rivalFrames[index]
+    if (playerFrame === undefined || rivalFrame === undefined) return []
+    return [{percent, delta: playerFrame - rivalFrame}]
+  })
+}
 
 /**
  * The ghost to chase: the player's own pick while it can still be raced, else the pilot

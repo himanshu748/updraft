@@ -18,6 +18,7 @@ race your best ghost or the fastest pilots on the day's course.
 3. Use thermals for lift and boost rings for speed. Avoid balloons and fly through the finish gate to set a time.
 
 You can fly as a guest. Sign in to save your time and ghost.
+After your run, check the splits against your rival to see where you gained or lost time.
 
 ## How it uses Devvit
 
