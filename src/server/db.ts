@@ -25,11 +25,30 @@ export async function dbSaveRun(
   frames: number,
   input: RunInput,
 ): Promise<boolean> {
-  const best = await dbBest(day, user)
-  if (best !== undefined && best <= frames) return false
-  await redis.zAdd(boardKey(day), {member: user, score: frames})
-  await redis.hSet(runsKey(day), {[user]: JSON.stringify(input)})
-  return true
+  const board = boardKey(day)
+  const replay = JSON.stringify(input)
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const tx = await redis.watch(board)
+    let queued = false
+    let ended = false
+    try {
+      const best = await dbBest(day, user)
+      if (best !== undefined && best <= frames) return false
+      await tx.multi()
+      queued = true
+      await tx.zAdd(board, {member: user, score: frames})
+      await tx.hSet(runsKey(day), {[user]: replay})
+      const result = await tx.exec()
+      ended = true
+      if (result?.length === 2) return true
+    } finally {
+      if (!ended) {
+        if (queued) await tx.discard().catch(() => undefined)
+        else await tx.unwatch().catch(() => undefined)
+      }
+    }
+  }
+  throw Error('Leaderboard changed while saving this run. Try again.')
 }
 
 export async function dbRank(

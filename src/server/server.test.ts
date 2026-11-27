@@ -13,6 +13,7 @@ import {
 import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {addDays, dayKey} from '../shared/day.ts'
 import {type RunInput, simulate} from '../shared/sim.ts'
+import {dbBest, dbInput, dbSaveRun} from './db.ts'
 import {installMemoryRedis} from './memoryRedis.ts'
 import {onReq} from './server.ts'
 
@@ -122,6 +123,45 @@ test('the server re-flies the input and ranks the time it measured', async () =>
   assert.deepEqual(day.json.board, [{rank: 1, name: 'alice', frames: expected}])
   assert.deepEqual(day.json.ghosts[0]?.input, input)
   assert.equal(day.json.me?.frames, expected)
+})
+
+test('a delayed slower finish cannot overwrite a concurrent faster score or ghost', async () => {
+  const day = addDays(today, -12)
+  const user = 'concurrent-finish'
+  const fasterInput = {lx: -40, ly: 10, toggles: []}
+  const slowerInput = {lx: -45, ly: 10, toggles: []}
+  const score = redis.zScore
+  let signalRead = () => {}
+  const read = new Promise<void>(resolve => {
+    signalRead = resolve
+  })
+  let resume = () => {}
+  const wait = new Promise<void>(resolve => {
+    resume = resolve
+  })
+  let holdFirstRead = true
+  redis.zScore = async (key, member) => {
+    const result = await score(key, member)
+    if (holdFirstRead && key === `board:${day}` && member === user) {
+      holdFirstRead = false
+      signalRead()
+      await wait
+    }
+    return result
+  }
+  const lateFinish = dbSaveRun(day, user, 900, slowerInput)
+  try {
+    await Promise.race([read, lateFinish])
+    assert.equal(await dbSaveRun(day, user, 700, fasterInput), true)
+    resume()
+    assert.equal(await lateFinish, false)
+    assert.equal(await dbBest(day, user), 700)
+    assert.deepEqual(await dbInput(day, user), fasterInput)
+  } finally {
+    resume()
+    redis.zScore = score
+    await lateFinish.catch(() => undefined)
+  }
 })
 
 test('unreadable saved replays do not block the daily course or other ghosts', async () => {

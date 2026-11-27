@@ -1,12 +1,14 @@
 import type {redis as devvitRedis} from '@devvit/web/server'
 
 type Redis = typeof devvitRedis
+type Transaction = Awaited<ReturnType<Redis['watch']>>
 
 /** In-memory stand-in for the parts of Devvit Redis Updraft uses (tests and local preview). */
 export function installMemoryRedis(redis: Redis): () => void {
   const strings = new Map<string, string>()
   const hashes = new Map<string, Map<string, string>>()
   const zsets = new Map<string, Map<string, number>>()
+  const revisions = new Map<string, number>()
   const hash = (k: string): Map<string, string> => {
     const m = hashes.get(k) ?? new Map<string, string>()
     hashes.set(k, m)
@@ -45,6 +47,7 @@ export function installMemoryRedis(redis: Redis): () => void {
     },
     zAdd: async (k, ...ms) => {
       for (const m of ms) zset(k).set(m.member, m.score)
+      revisions.set(k, (revisions.get(k) ?? 0) + 1)
       return ms.length
     },
     zScore: async (k, m) => zset(k).get(m),
@@ -60,6 +63,33 @@ export function installMemoryRedis(redis: Redis): () => void {
       const s = Number(start)
       const e = Number(stop)
       return all.slice(s, e < 0 ? all.length + e + 1 : e + 1)
+    },
+    watch: async (...keys) => {
+      const before = keys.map(key => revisions.get(key))
+      const commands: (() => Promise<number>)[] = []
+      const tx: Pick<
+        Transaction,
+        'multi' | 'zAdd' | 'hSet' | 'exec' | 'discard' | 'unwatch'
+      > = {
+        multi: async () => {},
+        zAdd: async (key, ...members) => {
+          commands.push(() => redis.zAdd(key, ...members))
+          return tx as Transaction
+        },
+        hSet: async (key, values) => {
+          commands.push(() => redis.hSet(key, values))
+          return tx as Transaction
+        },
+        exec: async () =>
+          keys.some((key, i) => revisions.get(key) !== before[i])
+            ? []
+            : Promise.all(commands.map(run => run())),
+        discard: async () => {
+          commands.length = 0
+        },
+        unwatch: async () => tx as Transaction,
+      }
+      return tx as Transaction
     },
   }
   Object.assign(redis, fake)
