@@ -3,6 +3,14 @@ import type {Course} from '../shared/course.ts'
 import {fps, type RunInput, simulate} from '../shared/sim.ts'
 
 const checkpoints = [25, 50, 75] as const
+export const parPilot = 'par pilot'
+export const personalBest = 'your best'
+
+export function pilotName(name: string): string {
+  if (name === parPilot) return 'the par pilot'
+  if (name === personalBest) return personalBest
+  return `u/${name}`
+}
 
 /** Compare first crossings at the same points on the course. Negative means ahead. */
 export function rivalSplits(course: Course, player: RunInput, rival: RunInput) {
@@ -48,6 +56,20 @@ export function pickRival(
   const ahead = others.filter(g => g.frames < myFrames)
   const behind = others.filter(g => g.frames >= myFrames)
   return (ahead.at(-1) ?? behind[0])?.name ?? null
+}
+
+export function pickRaceTarget(
+  ghosts: readonly Ghost[],
+  me: string | null,
+  myFrames: number | null,
+  stored: string | null,
+): string {
+  if (stored === parPilot || (stored === personalBest && myFrames !== null))
+    return stored
+  return (
+    pickRival(ghosts, me, myFrames, stored) ??
+    (myFrames === null ? parPilot : personalBest)
+  )
 }
 
 /** Seconds the player leads (+) or trails (-) a ghost, from the gap in x at their speed. */

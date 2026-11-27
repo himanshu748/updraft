@@ -6,7 +6,7 @@ import {countdown, dayKey, formatTime, prettyDay} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
 import {fetchDay} from './fetch.ts'
 import {type Camera, drawPlane, ghostColors} from './render.ts'
-import {pickRival} from './rival.ts'
+import {parPilot, personalBest, pickRaceTarget, pilotName} from './rival.ts'
 
 const canvas = document.getElementById('map') as HTMLCanvasElement
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
@@ -181,14 +181,16 @@ async function init(): Promise<void> {
     ? `Yesterday: ${info.yesterday.map((r, i) => `${medals[i]}\u00a0u/${r.name}\u00a0${formatTime(r.frames)}`).join(' · ')}`
     : ''
   podium.hidden = !info.yesterday.length
-  const rival = pickRival(
+  const stored = storedRival(info.day)
+  const rival = pickRaceTarget(
     info.ghosts,
     info.username,
     info.me?.frames ?? null,
-    storedRival(info.day),
+    stored,
   )
-  if (rival) startBtn.textContent = `Chase u/${rival}`
-  else if (info.me) startBtn.textContent = 'Beat your ghost'
+  if (rival === personalBest) startBtn.textContent = 'Beat your ghost'
+  else if (rival !== parPilot || stored === parPilot)
+    startBtn.textContent = `Chase ${pilotName(rival)}`
   else if (info.day !== info.today) startBtn.textContent = 'Fly this course'
   renderSplash()
 }

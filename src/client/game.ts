@@ -24,7 +24,14 @@ import {
   type PlaneSprite,
   Scene,
 } from './render.ts'
-import {leadSeconds, pickRival, rivalSplits} from './rival.ts'
+import {
+  leadSeconds,
+  parPilot,
+  personalBest,
+  pickRaceTarget,
+  pilotName,
+  rivalSplits,
+} from './rival.ts'
 import {Sfx} from './sfx.ts'
 import {coachedThrow, resolveThrow} from './throw.ts'
 
@@ -59,6 +66,8 @@ const hud = {
   board: $('board'),
   boardHint: $('board-hint'),
   rival: $('rival'),
+  personalRival: $<HTMLButtonElement>('personal-rival'),
+  parRival: $<HTMLButtonElement>('par-rival'),
   next: $('next'),
 }
 
@@ -76,15 +85,11 @@ let flight: Flight
 let recorder = new InputRecorder()
 let ghosts: GhostFlight[] = []
 let rival: string | null = null
+let requestedRival: string | null = null
 let rivalFlight: GhostFlight | undefined
 const rivalColor = '#ffd23f'
 /** The autopilot that set the day's par: always there to race, even before anyone has flown. */
-const parPilot = 'par pilot'
 let parGhost: {day: DayKey; ghost: Ghost} | undefined
-
-function pilotName(name: string): string {
-  return name === parPilot ? 'the par pilot' : `u/${name}`
-}
 
 function parPilotGhost(): Ghost {
   if (parGhost?.day !== day) {
@@ -113,6 +118,7 @@ async function init(): Promise<void> {
   } catch (err) {
     console.warn(`offline; ${err}`)
   }
+  requestedRival = storedRival()
   const {course} = dailyCourse(day)
   scene = new Scene(course)
   hud.name.textContent = `${prettyDay(day)} · ${course.name}`
@@ -144,6 +150,7 @@ function storedRival(): string | null {
 }
 
 function chooseRival(name: string): void {
+  requestedRival = name
   try {
     localStorage.setItem(`updraft:rival:${day}`, name)
   } catch {}
@@ -152,7 +159,7 @@ function chooseRival(name: string): void {
   else {
     hud.rival.hidden = false
     hud.rival.className = 'sub rival'
-    hud.rival.textContent = `next: vs u/${name}`
+    hud.rival.textContent = `next: vs ${pilotName(name)}`
   }
 }
 
@@ -164,13 +171,15 @@ function canRace(name: string): boolean {
 
 function renderBoard(): void {
   const rows = info?.board ?? []
-  rival =
-    pickRival(
-      info?.ghosts ?? [],
-      info?.username ?? null,
-      info?.me?.frames ?? null,
-      storedRival(),
-    ) ?? parPilot
+  rival = pickRaceTarget(
+    info?.ghosts ?? [],
+    info?.username ?? null,
+    info?.me?.frames ?? null,
+    requestedRival,
+  )
+  hud.personalRival.hidden = !info?.me
+  hud.personalRival.setAttribute('aria-pressed', String(rival === personalBest))
+  hud.parRival.setAttribute('aria-pressed', String(rival === parPilot))
   hud.board.replaceChildren(
     ...rows.map(r => {
       const li = document.createElement('li')
@@ -206,18 +215,20 @@ function reset(): void {
   aim = {lx: 0, ly: 0}
   aimFrom = undefined
   acc = 0
-  const list: Ghost[] = [...(info?.ghosts ?? [])].sort(
-    (a, b) => Number(b.name === rival) - Number(a.name === rival),
-  )
-  if (info?.me && !list.some(g => g.name === info?.username))
+  const list: Ghost[] = (info?.ghosts ?? [])
+    .filter(g => g.name !== info?.username)
+    .sort((a, b) => Number(b.name === rival) - Number(a.name === rival))
+    .slice(0, info?.me ? 24 : 25)
+  if (info?.me) {
     list.push({
-      name: info.username ?? 'you',
+      name: personalBest,
       frames: info.me.frames,
       input: info.me.input,
     })
+  }
   let colorIndex = 0
-  ghosts = [...list.slice(0, 25), parPilotGhost()].map(ghost => {
-    const mine = ghost.name === info?.username
+  ghosts = [...list, parPilotGhost()].map(ghost => {
+    const mine = ghost.name === personalBest
     const chased = ghost.name === rival
     const par = ghost.name === parPilot
     const rank = info?.board.find(r => r.name === ghost.name)?.rank
@@ -378,10 +389,15 @@ function showCard(
           `<div class="pill win">Beat ${who} by ${formatTime(-diff)}</div>`,
         )
       else if (diff === 0) lines.push(`<div>Dead heat with ${who}</div>`)
-      else
-        lines.push(
-          `<div>${racedGhost.name === parPilot ? 'The par pilot' : who} was ${formatTime(diff)} faster</div>`,
-        )
+      else {
+        const winner =
+          racedGhost.name === parPilot
+            ? 'The par pilot'
+            : racedGhost.name === personalBest
+              ? 'Your best'
+              : who
+        lines.push(`<div>${winner} was ${formatTime(diff)} faster</div>`)
+      }
     }
     if (rsp?.rank)
       lines.push(`<div>#${rsp.rank} of ${rsp.players} pilots today</div>`)
@@ -672,6 +688,8 @@ hud.again.addEventListener('keyup', ev => {
 hud.again.addEventListener('click', () => {
   if (performance.now() - doneAt > 600) reset()
 })
+hud.personalRival.addEventListener('click', () => chooseRival(personalBest))
+hud.parRival.addEventListener('click', () => chooseRival(parPilot))
 hud.login.addEventListener('click', () => {
   try {
     showLoginPrompt()

@@ -3,7 +3,14 @@ import {test} from 'node:test'
 import type {Ghost} from '../shared/api.ts'
 import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {fps} from '../shared/sim.ts'
-import {leadSeconds, pickRival, rivalSplits} from './rival.ts'
+import {
+  leadSeconds,
+  parPilot,
+  personalBest,
+  pickRaceTarget,
+  pickRival,
+  rivalSplits,
+} from './rival.ts'
 
 const names = ['ace', 'bo', 'cy', 'di']
 const ghost = (name: string, frames: number): Ghost => ({
@@ -48,6 +55,21 @@ test("keeps the player's pick, but never themselves or a pilot without a ghost",
 
 test('no rival on an empty board', () => {
   assert.equal(pickRival([], 'ace', 900, 'bo'), null)
+})
+
+test('targets the personal best when it is the only saved race', () => {
+  assert.equal(
+    pickRaceTarget([ghost('cy', 920)], 'cy', 920, null),
+    personalBest,
+  )
+  assert.equal(pickRaceTarget([], null, null, personalBest), parPilot)
+})
+
+test('honors an explicit personal or par choice across leaderboard refreshes', () => {
+  assert.equal(pickRaceTarget(ghosts, 'cy', 920, personalBest), personalBest)
+  assert.equal(pickRaceTarget(ghosts, 'cy', 920, parPilot), parPilot)
+  assert.equal(pickRaceTarget(ghosts, 'cy', 920, 'di'), 'di')
+  assert.equal(pickRaceTarget(ghosts, null, null, personalBest), 'ace')
 })
 
 test('lead is the x gap in seconds at the current speed', () => {
