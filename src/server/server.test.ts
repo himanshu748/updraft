@@ -566,3 +566,26 @@ test('the daily race survives an unavailable previous podium', async t => {
   assert.deepEqual(json.me?.input, input)
   assert.ok(json.board.some(row => row.name === user))
 })
+
+test('a failed player tally does not discard a verified finish', async t => {
+  const user = 'player-tally-unavailable'
+  const input = best(today)
+  const frames = simulate(dailyCourse(today).course, input).frames
+  t.mock.method(console, 'error', () => {})
+  t.mock.method(console, 'warn', () => {})
+  t.mock.method(redis, 'zCard', async () => {
+    throw new Error('player tally unavailable')
+  })
+
+  const {status, json} = await call<RunRsp>(Endpoint.Run, {
+    user,
+    body: {day: today, input},
+  })
+  assert.equal(status, 200)
+  assert.equal(json.status, 'finished')
+  assert.equal(json.saved, true)
+  assert.equal(json.best, frames)
+  assert.equal(json.players, null)
+  assert.equal(json.beat, null)
+  assert.equal(await dbBest(today, user), frames)
+})

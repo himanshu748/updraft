@@ -40,7 +40,8 @@ export type RunRsp = {
   improved: boolean
   best: number | null
   rank: number | null
-  players: number
+  /** Null when the player tally could not be confirmed. */
+  players: number | null
   /** Share of other finishers this flight beat, 0-100. Null if unavailable. */
   beat: number | null
   /** Null when the streak could not be confirmed. */
