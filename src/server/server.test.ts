@@ -589,3 +589,40 @@ test('a failed player tally does not discard a verified finish', async t => {
   assert.equal(json.beat, null)
   assert.equal(await dbBest(today, user), frames)
 })
+
+for (const stat of ['personal best', 'rank'] as const) {
+  test(`a failed ${stat} lookup does not discard a verified finish`, async t => {
+    const user = `run-stat-${stat.replace(' ', '-')}`
+    const input = best(today)
+    const frames = simulate(dailyCourse(today).course, input).frames
+    const score = redis.zScore
+    t.mock.method(console, 'error', () => {})
+    t.mock.method(console, 'warn', () => {})
+    if (stat === 'personal best') {
+      let reads = 0
+      t.mock.method(redis, 'zScore', async (key: string, member: string) => {
+        if (key === `board:${today}` && member === user && ++reads === 2)
+          throw new Error('personal best unavailable after save')
+        return score(key, member)
+      })
+    } else {
+      t.mock.method(redis, 'zRank', async () => {
+        throw new Error('rank unavailable')
+      })
+    }
+
+    const {status, json} = await call<RunRsp>(Endpoint.Run, {
+      user,
+      body: {day: today, input},
+    })
+    assert.equal(status, 200)
+    assert.equal(json.status, 'finished')
+    assert.equal(json.saved, true)
+    assert.equal(json.improved, true)
+    assert.equal(json.best, stat === 'personal best' ? null : frames)
+    if (stat === 'personal best') assert.equal(json.beat, null)
+    else assert.equal(json.rank, null)
+    assert.equal(await dbBest(today, user), frames)
+    assert.deepEqual(await dbInput(today, user), input)
+  })
+}
