@@ -25,7 +25,8 @@ export type DayRsp = {
   me: {frames: number; rank: number; input: RunInput} | null
   /** Link to the comment you posted about your current best, if any. */
   myComment: string | null
-  streak: number
+  /** Null when the streak could not be confirmed. */
+  streak: number | null
 }
 
 export type RunReq = {day: DayKey; input: RunInput}
