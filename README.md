@@ -18,6 +18,7 @@ race your best ghost or the fastest pilots on the day's course.
 3. Use thermals for lift and boost rings for speed. Avoid balloons and fly through the finish gate to set a time.
 
 You can fly as a guest. Sign in to save your time and ghost.
+Your finish time appears immediately. The leaderboard waits for the server to replay your flight.
 After your run, check the splits to see where you gained or lost time. Race your personal best, the par pilot, or a pilot from the leaderboard next.
 
 ## How it uses Devvit

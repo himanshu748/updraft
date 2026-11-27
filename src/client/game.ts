@@ -59,6 +59,7 @@ const hud = {
   hint: $('hint'),
   card: $('card'),
   cardBody: $('card-body'),
+  verification: $('verification'),
   again: $<HTMLButtonElement>('again'),
   share: $<HTMLButtonElement>('share'),
   login: $<HTMLButtonElement>('login'),
@@ -79,6 +80,8 @@ const paper = '#fffaf3'
 let frameDt = 1 / 60
 let day: DayKey = dayKey()
 let info: DayRsp | undefined
+let nextDayRequest = 0
+let appliedDayRequest = 0
 let scene: Scene
 let mode: Mode = 'loading'
 let flight: Flight
@@ -329,17 +332,25 @@ async function finish(): Promise<void> {
   }
   const run = flight
   const racedGhost = rivalFlight?.ghost
+  showCard(undefined, input, racedGhost, true)
   let rsp: RunRsp | undefined
   try {
     rsp = await postRun({day, input})
   } catch (err) {
     console.warn(`run not saved; ${err}`)
   }
-  if (rsp?.improved && info) info.myComment = null
-  // The player may have restarted (Space) while the run was saving.
-  if (flight === run) showCard(rsp, input, racedGhost)
+  // The player may have restarted while the server was replaying this flight.
+  if (flight === run) {
+    if (rsp?.improved) recordComment(null)
+    showCard(rsp, input, racedGhost, false)
+  }
+  const request = ++nextDayRequest
   try {
-    info = await fetchDay()
+    const next = await fetchDay()
+    // A later refresh or a confirmed comment can already have updated this view.
+    if (request < appliedDayRequest) return
+    appliedDayRequest = request
+    info = next
     renderPar()
     renderBoard()
     renderShare()
@@ -348,16 +359,17 @@ async function finish(): Promise<void> {
 
 /** Live split against the chosen rival: how far ahead or behind, in seconds. */
 function renderLead(): void {
-  if (!rivalFlight || !rival) return
+  if (!rivalFlight) return
   const r = rivalFlight.flight
+  const who = pilotName(rivalFlight.ghost.name)
   if (r.status === 'finished') {
     hud.rival.className = 'sub rival behind'
-    hud.rival.textContent = `${pilotName(rival)} landed`
+    hud.rival.textContent = `${who} landed`
     return
   }
   const s = leadSeconds(flight.x, r.x, flight.speed)
   hud.rival.className = `sub rival ${s >= 0 ? 'ahead' : 'behind'}`
-  hud.rival.textContent = `${s >= 0 ? '▲' : '▼'} ${Math.abs(s).toFixed(2)}s ${s >= 0 ? 'ahead of' : 'behind'} ${pilotName(rival)}`
+  hud.rival.textContent = `${s >= 0 ? '▲' : '▼'} ${Math.abs(s).toFixed(2)}s ${s >= 0 ? 'ahead of' : 'behind'} ${who}`
 }
 
 function renderShare(): void {
@@ -366,20 +378,28 @@ function renderShare(): void {
     : 'Comment my time'
 }
 
+function recordComment(url: string | null): void {
+  if (!info) return
+  info.myComment = url
+  appliedDayRequest = ++nextDayRequest
+}
+
 function showCard(
   rsp: RunRsp | undefined,
   input: RunInput,
   racedGhost: Ghost | undefined,
+  pending: boolean,
 ): void {
   const ok = flight.status === 'finished'
-  const medal = rsp?.medal ?? 'none'
+  const verified = rsp?.status === 'finished' && rsp.frames === flight.frame
+  const medal = verified ? rsp.medal : 'none'
   const icon = {gold: '🥇', silver: '🥈', bronze: '🥉', none: ok ? '🛬' : '💥'}[
     medal
   ]
   const lines: string[] = []
   if (ok) {
     lines.push(`<div class="big">${icon} ${formatTime(flight.frame)}</div>`)
-    if (rsp?.improved)
+    if (verified && rsp.improved)
       lines.push('<div class="pill new">New personal best</div>')
     if (racedGhost) {
       const diff = flight.frame - racedGhost.frames
@@ -399,11 +419,11 @@ function showCard(
         lines.push(`<div>${winner} was ${formatTime(diff)} faster</div>`)
       }
     }
-    if (rsp?.rank)
+    if (verified && rsp.rank)
       lines.push(`<div>#${rsp.rank} of ${rsp.players} pilots today</div>`)
-    if (rsp && rsp.players > 1 && rsp.beat !== null)
+    if (verified && rsp.players > 1 && rsp.beat !== null)
       lines.push(`<div>Faster than ${rsp.beat}% of the field</div>`)
-    if (rsp?.best && !rsp.improved)
+    if (verified && rsp.best && !rsp.improved)
       lines.push(`<div class="dim">Your best: ${formatTime(rsp.best)}</div>`)
   } else {
     lines.push(
@@ -442,14 +462,27 @@ function showCard(
     }
   }
   hud.cardBody.innerHTML = lines.join('')
+  let verification = ''
+  if (ok) {
+    if (pending) verification = 'Checking your time on the server…'
+    else if (!verified) verification = 'The server did not confirm this time.'
+    else if (rsp.saved) verification = 'Server verified this flight.'
+    else
+      verification =
+        'Server verified this guest flight. Sign in to save a time.'
+  }
+  hud.verification.textContent = verification
   const loggedIn = Boolean(info?.username)
-  hud.share.hidden = !loggedIn || !(rsp?.best ?? info?.me)
+  hud.share.hidden = pending || !loggedIn || !(rsp?.best ?? info?.me)
   renderShare()
   hud.login.hidden = loggedIn || !ok
+  const opening = hud.card.hidden
   hud.card.hidden = false
   renderNext()
+  if (!opening) return
+  const run = flight
   setTimeout(() => {
-    if (mode !== 'done') return
+    if (mode !== 'done' || flight !== run) return
     staleSpace = spaceHeld
     hud.again.focus({preventScroll: true})
   }, 600)
@@ -705,17 +738,20 @@ hud.share.addEventListener('click', async () => {
     }
     return
   }
+  const run = flight
   hud.share.disabled = true
   try {
     const rsp = await postShare({day})
-    if (info) info.myComment = rsp.commentUrl
+    if (flight !== run) return
+    recordComment(rsp.commentUrl)
     toast(
       rsp.existing
         ? 'You already commented this time'
         : 'Posted your time in the comments',
     )
   } catch (err) {
-    toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
+    if (flight === run)
+      toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
   } finally {
     hud.share.disabled = false
     renderShare()
