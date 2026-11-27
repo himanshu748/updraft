@@ -769,8 +769,11 @@ hud.share.addEventListener('click', async () => {
         : 'Posted your time in the comments',
     )
   } catch (err) {
-    if (flight === run)
-      toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
+    if (flight === run) {
+      if (err instanceof DOMException && err.name === 'AbortError')
+        toast('Could not confirm your comment. Check the post comments.')
+      else toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
+    }
   } finally {
     hud.share.disabled = false
     renderShare()
