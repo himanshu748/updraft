@@ -544,3 +544,25 @@ test('the daily race survives an unavailable ghost lookup', async t => {
   assert.deepEqual(json.me?.input, input)
   assert.ok(json.board.some(row => row.name === user))
 })
+
+test('the daily race survives an unavailable previous podium', async t => {
+  const user = 'historical-podium-failure'
+  const input = best(today)
+  const frames = simulate(dailyCourse(today).course, input).frames
+  await dbSaveRun(today, user, frames, input)
+  const read = redis.zRange.bind(redis)
+  t.mock.method(console, 'error', () => {})
+  t.mock.method(console, 'warn', () => {})
+  t.mock.method(redis, 'zRange', async (...args: Parameters<typeof read>) => {
+    if (args[0] === `board:${addDays(today, -1)}`)
+      throw new Error('historical podium unavailable')
+    return read(...args)
+  })
+
+  const {status, json} = await call<DayRsp>(Endpoint.Day, {user})
+  assert.equal(status, 200)
+  assert.deepEqual(json.par, dailyCourse(today).par)
+  assert.deepEqual(json.yesterday, [])
+  assert.deepEqual(json.me?.input, input)
+  assert.ok(json.board.some(row => row.name === user))
+})
