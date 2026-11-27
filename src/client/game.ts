@@ -436,9 +436,14 @@ function showCard(
         lines.push(`<div>${winner} was ${formatTime(diff)} faster</div>`)
       }
     }
-    if (verified && rsp.rank)
+    if (verified && rsp.rank && rsp.players !== null)
       lines.push(`<div>#${rsp.rank} of ${rsp.players} pilots today</div>`)
-    if (verified && rsp.players > 1 && rsp.beat !== null)
+    if (
+      verified &&
+      rsp.players !== null &&
+      rsp.players > 1 &&
+      rsp.beat !== null
+    )
       lines.push(`<div>Faster than ${rsp.beat}% of the field</div>`)
     if (verified && rsp.best && !rsp.improved)
       lines.push(`<div class="dim">Your best: ${formatTime(rsp.best)}</div>`)

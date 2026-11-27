@@ -210,16 +210,19 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
     if (streak !== null && (streak !== before || improved))
       await syncFlair(user, streak, today)
   }
-  const players = await dbPlayers(day)
-  const others =
-    players - (user && (await dbBest(day, user)) !== undefined ? 1 : 0)
-  const slower = finished
-    ? await dbSlowerThan(day, result.frames).catch((err: unknown) => {
-        console.warn(`field comparison unavailable; ${err}`)
-        return null
-      })
-    : 0
+  const players = await dbPlayers(day).catch((err: unknown) => {
+    console.warn(`player tally unavailable; ${err}`)
+    return null
+  })
   const best = user ? ((await dbBest(day, user)) ?? null) : null
+  const others = players === null ? null : players - (best === null ? 0 : 1)
+  const slower =
+    finished && others !== null
+      ? await dbSlowerThan(day, result.frames).catch((err: unknown) => {
+          console.warn(`field comparison unavailable; ${err}`)
+          return null
+        })
+      : 0
   return {
     status: result.status,
     frames: result.frames,
@@ -232,7 +235,7 @@ async function routeRun(req: RunReq): Promise<RunRsp> {
     rank: user ? ((await dbRank(day, user)) ?? null) : null,
     players,
     beat:
-      slower === null
+      slower === null || others === null
         ? null
         : others > 0
           ? Math.round((100 * Math.min(slower, others)) / others)
