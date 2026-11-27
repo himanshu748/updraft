@@ -1,4 +1,9 @@
-import {navigateTo, showLoginPrompt, showToast} from '@devvit/web/client'
+import {
+  context,
+  navigateTo,
+  showLoginPrompt,
+  showToast,
+} from '@devvit/web/client'
 import type {DayRsp, Ghost, RunRsp} from '../shared/api.ts'
 import {autopilot, dailyCourse} from '../shared/bot.ts'
 import {
@@ -6,6 +11,7 @@ import {
   type DayKey,
   dayKey,
   formatTime,
+  isDayKey,
   prettyDay,
 } from '../shared/day.ts'
 import {
@@ -78,7 +84,9 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
 const scraps: Scrap[] = []
 const paper = '#fffaf3'
 let frameDt = 1 / 60
-let day: DayKey = dayKey()
+const postDate = context?.postData?.day
+let day: DayKey = isDayKey(postDate) ? postDate : dayKey()
+let canSubmit = isDayKey(postDate)
 let info: DayRsp | undefined
 let nextDayRequest = 0
 let appliedDayRequest = 0
@@ -118,6 +126,7 @@ async function init(): Promise<void> {
   try {
     info = await fetchDay()
     day = info.day
+    canSubmit = true
   } catch (err) {
     console.warn(`offline; ${err}`)
   }
@@ -209,7 +218,9 @@ function renderBoard(): void {
     empty.className = 'empty'
     empty.textContent = info
       ? 'No times yet. Be the first ghost.'
-      : 'Leaderboard unavailable. You can still fly.'
+      : canSubmit
+        ? 'Leaderboard unavailable. You can still fly.'
+        : 'Leaderboard unavailable. You can still practice.'
     hud.board.append(empty)
   }
 }
@@ -337,7 +348,8 @@ async function finish(): Promise<void> {
   }
   const run = flight
   const racedGhost = rivalFlight?.ghost
-  showCard(undefined, input, racedGhost, true)
+  showCard(undefined, input, racedGhost, canSubmit)
+  if (!canSubmit) return
   let rsp: RunRsp | undefined
   try {
     rsp = await postRun({day, input})
@@ -468,7 +480,9 @@ function showCard(
   }
   hud.cardBody.innerHTML = lines.join('')
   let verification = ''
-  if (ok) {
+  if (!canSubmit) {
+    verification = 'Practice flight. Reopen the post to race for a time.'
+  } else if (ok) {
     if (pending) verification = 'Checking your time on the server…'
     else if (!verified) verification = 'The server did not confirm this time.'
     else if (rsp.saved) verification = 'Server verified this flight.'
@@ -480,7 +494,7 @@ function showCard(
   const loggedIn = Boolean(info?.username)
   hud.share.hidden = pending || !loggedIn || !(rsp?.best ?? info?.me)
   renderShare()
-  hud.login.hidden = loggedIn || !ok
+  hud.login.hidden = !canSubmit || loggedIn || !ok
   const opening = hud.card.hidden
   hud.card.hidden = false
   renderNext()
