@@ -204,9 +204,14 @@ function renderBoard(): void {
     }),
   )
   hud.boardHint.hidden = !rows.some(r => canRace(r.name))
-  if (!rows.length)
-    hud.board.innerHTML =
-      '<li class="empty">No times yet. Be the first ghost.</li>'
+  if (!rows.length) {
+    const empty = document.createElement('li')
+    empty.className = 'empty'
+    empty.textContent = info
+      ? 'No times yet. Be the first ghost.'
+      : 'Leaderboard unavailable. You can still fly.'
+    hud.board.append(empty)
+  }
 }
 
 function reset(): void {
