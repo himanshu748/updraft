@@ -80,6 +80,8 @@ const paper = '#fffaf3'
 let frameDt = 1 / 60
 let day: DayKey = dayKey()
 let info: DayRsp | undefined
+let nextDayRequest = 0
+let appliedDayRequest = 0
 let scene: Scene
 let mode: Mode = 'loading'
 let flight: Flight
@@ -337,11 +339,18 @@ async function finish(): Promise<void> {
   } catch (err) {
     console.warn(`run not saved; ${err}`)
   }
-  if (rsp?.improved && info) info.myComment = null
   // The player may have restarted while the server was replaying this flight.
-  if (flight === run) showCard(rsp, input, racedGhost, false)
+  if (flight === run) {
+    if (rsp?.improved) recordComment(null)
+    showCard(rsp, input, racedGhost, false)
+  }
+  const request = ++nextDayRequest
   try {
-    info = await fetchDay()
+    const next = await fetchDay()
+    // A later refresh or a confirmed comment can already have updated this view.
+    if (request < appliedDayRequest) return
+    appliedDayRequest = request
+    info = next
     renderPar()
     renderBoard()
     renderShare()
@@ -367,6 +376,12 @@ function renderShare(): void {
   hud.share.textContent = info?.myComment
     ? 'View my comment'
     : 'Comment my time'
+}
+
+function recordComment(url: string | null): void {
+  if (!info) return
+  info.myComment = url
+  appliedDayRequest = ++nextDayRequest
 }
 
 function showCard(
@@ -723,17 +738,20 @@ hud.share.addEventListener('click', async () => {
     }
     return
   }
+  const run = flight
   hud.share.disabled = true
   try {
     const rsp = await postShare({day})
-    if (info) info.myComment = rsp.commentUrl
+    if (flight !== run) return
+    recordComment(rsp.commentUrl)
     toast(
       rsp.existing
         ? 'You already commented this time'
         : 'Posted your time in the comments',
     )
   } catch (err) {
-    toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
+    if (flight === run)
+      toast(`Couldn't post: ${err instanceof Error ? err.message : err}`)
   } finally {
     hud.share.disabled = false
     renderShare()
