@@ -174,7 +174,7 @@ async function routeDay(): Promise<DayRsp> {
     ghosts,
     me,
     myComment,
-    streak: user ? await dbStreak(user, today) : 0,
+    streak: user ? await dbStreak(user, today).catch(unavailableStreak) : 0,
   }
 }
 

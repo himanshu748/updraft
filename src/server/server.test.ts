@@ -486,3 +486,25 @@ for (const failure of ['read', 'write'] as const) {
     assert.equal(retry.json.streak, 1)
   })
 }
+
+test('the daily race survives an unavailable streak', async t => {
+  const user = 'day-streak-failure'
+  const input = best(today)
+  const frames = simulate(dailyCourse(today).course, input).frames
+  await dbSaveRun(today, user, frames, input)
+  const get = redis.hGetAll.bind(redis)
+  t.mock.method(console, 'error', () => {})
+  t.mock.method(console, 'warn', () => {})
+  t.mock.method(redis, 'hGetAll', async (key: string) => {
+    if (key === `streak:${user}`) throw new Error('streak read unavailable')
+    return get(key)
+  })
+  const {status, json} = await call<DayRsp>(Endpoint.Day, {user})
+  assert.equal(status, 200)
+  assert.equal(json.day, today)
+  assert.equal(json.username, user)
+  assert.deepEqual(json.par, dailyCourse(today).par)
+  assert.equal(json.me?.frames, frames)
+  assert.ok(json.board.some(row => row.name === user))
+  assert.equal(json.streak, null)
+})
