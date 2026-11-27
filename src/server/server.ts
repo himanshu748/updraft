@@ -158,7 +158,10 @@ async function routeDay(): Promise<DayRsp> {
     const input = frames === undefined ? undefined : await dbInput(day, user)
     const rank = await dbRank(day, user)
     if (frames !== undefined && input && rank) me = {frames, rank, input}
-    const share = await dbShare(day, user)
+    const share = await dbShare(day, user).catch(() => {
+      console.warn('comment receipt unavailable')
+      return undefined
+    })
     if (share && frames !== undefined && share.frames <= frames)
       myComment = share.url
   }
