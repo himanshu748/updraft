@@ -182,6 +182,29 @@ button[hidden] {
   justify-content: center;
   margin: 14px 0 6px;
 }
+.race-targets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 0 6px;
+  padding: 0;
+  border: 0;
+}
+.race-targets legend {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.race-targets button {
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+}
+.race-targets button[aria-pressed='true'] {
+  background: #ffd23f;
+  color: #3a2a00;
+}
 .card h3 {
   margin: 12px 0 4px;
   font-size: 13px;
