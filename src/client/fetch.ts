@@ -25,17 +25,25 @@ async function call<T>(
   return json as T
 }
 
-export async function fetchDay(): Promise<DayRsp> {
+async function callWithTimeout<T>(
+  endpoint: Endpoint,
+  timeoutMs: number,
+  body?: unknown,
+): Promise<T> {
   const request = new AbortController()
-  const timeout = setTimeout(() => request.abort(), 4000)
+  const timeout = setTimeout(() => request.abort(), timeoutMs)
   try {
-    return await call<DayRsp>(Endpoint.Day, undefined, request.signal)
+    return await call<T>(endpoint, body, request.signal)
   } finally {
     clearTimeout(timeout)
   }
 }
 
+export const fetchDay = (): Promise<DayRsp> =>
+  callWithTimeout<DayRsp>(Endpoint.Day, 4000)
+
+// A timeout cannot tell us whether the server saved the run, so never retry it here.
 export const postRun = (req: RunReq): Promise<RunRsp> =>
-  call<RunRsp>(Endpoint.Run, req)
+  callWithTimeout<RunRsp>(Endpoint.Run, 8000, req)
 export const postShare = (req: ShareReq): Promise<ShareRsp> =>
   call<ShareRsp>(Endpoint.Share, req)
