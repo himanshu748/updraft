@@ -46,4 +46,4 @@ export const fetchDay = (): Promise<DayRsp> =>
 export const postRun = (req: RunReq): Promise<RunRsp> =>
   callWithTimeout<RunRsp>(Endpoint.Run, 8000, req)
 export const postShare = (req: ShareReq): Promise<ShareRsp> =>
-  call<ShareRsp>(Endpoint.Share, req)
+  callWithTimeout<ShareRsp>(Endpoint.Share, 8000, req)

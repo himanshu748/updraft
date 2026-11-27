@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {fetchDay, postRun} from './fetch.ts'
+import {fetchDay, postRun, postShare} from './fetch.ts'
 
 test('a stalled day request is aborted so local play can start', async t => {
   t.mock.timers.enable({apis: ['setTimeout']})
@@ -40,6 +40,32 @@ test('a stalled run verification is abandoned without resubmitting the flight', 
     postRun({day: '2026-11-27', input: {lx: 36, ly: 0, toggles: []}}),
     {name: 'AbortError'},
   )
+  t.mock.timers.tick(8000)
+  await result
+  assert.equal(fetch.mock.callCount(), 1)
+})
+
+test('a stalled comment request is abandoned without reposting', async t => {
+  t.mock.timers.enable({apis: ['setTimeout']})
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    (path: string, init: RequestInit) => {
+      assert.equal(path, '/api/share')
+      assert.equal(init.method, 'POST')
+      const signal = init.signal
+      assert.ok(signal)
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        })
+      })
+    },
+  )
+
+  const result = assert.rejects(postShare({day: '2026-11-27'}), {
+    name: 'AbortError',
+  })
   t.mock.timers.tick(8000)
   await result
   assert.equal(fetch.mock.callCount(), 1)
