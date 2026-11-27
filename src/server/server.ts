@@ -176,7 +176,10 @@ async function routeDay(): Promise<DayRsp> {
     flights: await dbFlights(day),
     par,
     board: board.slice(0, 10),
-    yesterday: await dbBoard(addDays(day, -1), 3),
+    yesterday: await dbBoard(addDays(day, -1), 3).catch(() => {
+      console.warn('previous podium unavailable')
+      return []
+    }),
     ghosts,
     me,
     myComment,
