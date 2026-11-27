@@ -169,7 +169,7 @@ async function init(): Promise<void> {
   if (info.me)
     parts.push(`your best ${formatTime(info.me.frames)} (#${info.me.rank})`)
   const today = info.day === info.today
-  if (info.streak > 1)
+  if (info.streak !== null && info.streak > 1)
     parts.push(
       today && !info.me
         ? `🔥 ${info.streak}-day streak, fly today to keep it`
