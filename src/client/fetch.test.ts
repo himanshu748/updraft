@@ -8,7 +8,9 @@ test('a stalled day request is aborted so local play can start', async t => {
     const signal = init.signal
     assert.ok(signal)
     return new Promise<Response>((_resolve, reject) => {
-      signal.addEventListener('abort', () => reject(signal.reason), {once: true})
+      signal.addEventListener('abort', () => reject(signal.reason), {
+        once: true,
+      })
     })
   })
 
