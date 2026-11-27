@@ -23,6 +23,7 @@ import {
 } from '../shared/sim.ts'
 import {fetchDay, postRun, postShare} from './fetch.ts'
 import {drawScraps, type Scrap, spawnBurst, stepScraps} from './fx.ts'
+import {bindFlightPointer} from './pointer.ts'
 import {
   type Camera,
   fitScale,
@@ -698,15 +699,7 @@ function release(x?: number, y?: number, cancel = false): void {
   } else if (mode === 'flying') holding = false
 }
 
-canvas.addEventListener('pointerdown', ev => {
-  canvas.setPointerCapture(ev.pointerId)
-  press(ev.clientX, ev.clientY)
-})
-canvas.addEventListener('pointermove', ev => move(ev.clientX, ev.clientY))
-canvas.addEventListener('pointerup', ev => release(ev.clientX, ev.clientY))
-canvas.addEventListener('pointercancel', () =>
-  release(undefined, undefined, true),
-)
+bindFlightPointer(canvas, {press, move, release})
 canvas.addEventListener('contextmenu', ev => ev.preventDefault())
 window.addEventListener('keydown', ev => {
   if (ev.repeat) return
