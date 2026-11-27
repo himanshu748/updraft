@@ -150,7 +150,10 @@ async function routeDay(): Promise<DayRsp> {
   const user = context.username ?? null
   const {par} = dailyCourse(day)
   const board = await dbBoard(day, ghostCount)
-  const ghosts = await dbGhosts(day, board)
+  const ghosts = await dbGhosts(day, board).catch(() => {
+    console.warn('ghost replays unavailable')
+    return []
+  })
   let me: DayRsp['me'] = null
   let myComment: string | null = null
   if (user) {

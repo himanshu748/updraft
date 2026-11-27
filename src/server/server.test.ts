@@ -525,3 +525,22 @@ test('the daily race survives an unreadable comment receipt', async t => {
   assert.ok(json.board.some(row => row.name === user))
   assert.equal(json.myComment, null)
 })
+
+test('the daily race survives an unavailable ghost lookup', async t => {
+  const user = 'ghost-lookup-failure'
+  const input = best(today)
+  const frames = simulate(dailyCourse(today).course, input).frames
+  await dbSaveRun(today, user, frames, input)
+  t.mock.method(console, 'error', () => {})
+  t.mock.method(console, 'warn', () => {})
+  t.mock.method(redis, 'hMGet', async () => {
+    throw new Error('ghost lookup unavailable')
+  })
+
+  const {status, json} = await call<DayRsp>(Endpoint.Day, {user})
+  assert.equal(status, 200)
+  assert.deepEqual(json.par, dailyCourse(today).par)
+  assert.deepEqual(json.ghosts, [])
+  assert.deepEqual(json.me?.input, input)
+  assert.ok(json.board.some(row => row.name === user))
+})
