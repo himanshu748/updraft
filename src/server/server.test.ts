@@ -120,6 +120,36 @@ test('an unreadable personal replay does not block the course or scoreboard', as
   }
 })
 
+test('unavailable race tallies do not hide the course or scoreboard', async () => {
+  const day = addDays(today, -42)
+  const user = 'unavailable-race-tallies'
+  const input = best(day)
+  const {frames} = simulate(dailyCourse(day).course, input)
+  await dbSaveRun(day, user, frames, input)
+  const get = redis.get
+  const zCard = redis.zCard
+  redis.get = async key => {
+    if (key === `flights:${day}`) throw Error('flight counter unavailable')
+    return get(key)
+  }
+  redis.zCard = async key => {
+    if (key === `board:${day}`) throw Error('player tally unavailable')
+    return zCard(key)
+  }
+  try {
+    const {status, json} = await call<DayRsp>(Endpoint.Day, {user, day})
+    assert.equal(status, 200)
+    assert.equal(json.day, day)
+    assert.equal(json.players, null)
+    assert.equal(json.flights, null)
+    assert.deepEqual(json.board, [{rank: 1, name: user, frames}])
+    assert.deepEqual(json.ghosts, [{name: user, frames, input}])
+  } finally {
+    redis.get = get
+    redis.zCard = zCard
+  }
+})
+
 test('the server re-flies the input and ranks the time it measured', async () => {
   const input = best(today)
   const expected = dailyCourse(today).bot.frames

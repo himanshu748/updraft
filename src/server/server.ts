@@ -179,8 +179,14 @@ async function routeDay(): Promise<DayRsp> {
     day,
     today,
     username: user,
-    players: await dbPlayers(day),
-    flights: await dbFlights(day),
+    players: await dbPlayers(day).catch((err: unknown) => {
+      console.warn(`player tally unavailable; ${err}`)
+      return null
+    }),
+    flights: await dbFlights(day).catch((err: unknown) => {
+      console.warn(`flight count unavailable; ${err}`)
+      return null
+    }),
     par,
     board: board.slice(0, 10),
     yesterday: await dbBoard(addDays(day, -1), 3).catch(() => {

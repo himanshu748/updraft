@@ -15,8 +15,9 @@ export type DayRsp = {
   day: DayKey
   today: DayKey
   username: string | null
-  players: number
-  flights: number
+  /** Null when the respective tally could not be confirmed. */
+  players: number | null
+  flights: number | null
   par: Par
   board: BoardEntry[]
   /** The day before's top three, so each post celebrates the last podium. */
