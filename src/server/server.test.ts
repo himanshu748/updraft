@@ -96,6 +96,30 @@ test('a fresh post has an empty board and the day course par', async () => {
   assert.equal(json.me, null)
 })
 
+test('an unreadable personal replay does not block the course or scoreboard', async () => {
+  const day = addDays(today, -41)
+  const user = 'unreadable-personal-replay'
+  const input = best(day)
+  const {frames} = simulate(dailyCourse(day).course, input)
+  await dbSaveRun(day, user, frames, input)
+  const read = redis.hGet
+  redis.hGet = async (key, field) => {
+    if (key === `runs:${day}` && field === user)
+      throw Error('personal replay unavailable')
+    return read(key, field)
+  }
+  try {
+    const {status, json} = await call<DayRsp>(Endpoint.Day, {user, day})
+    assert.equal(status, 200)
+    assert.equal(json.day, day)
+    assert.deepEqual(json.board, [{rank: 1, name: user, frames}])
+    assert.deepEqual(json.ghosts, [{name: user, frames, input}])
+    assert.equal(json.me, null)
+  } finally {
+    redis.hGet = read
+  }
+})
+
 test('the server re-flies the input and ranks the time it measured', async () => {
   const input = best(today)
   const expected = dailyCourse(today).bot.frames
