@@ -8,19 +8,19 @@ Paper planes are the universal lobby-game — everyone has thrown one, everyone 
 
 ## What it does
 
-Every day at 00:01 UTC a new hand-tuned wind course posts to the subreddit: thermals, wind bands, boost rings and drifting balloons over rolling hills. Slingshot your plane, surf thermals for height, thread rings for speed, dodge balloons, and reach the finish gate fast. Gold/silver/bronze pars come from the course itself.
+Every day at 00:01 UTC, a scheduled job posts a new wind course to the subreddit. The date seeds a course with thermals, wind bands, boost rings, and drifting balloons. Slingshot your plane, surf thermals for height, thread rings for speed, dodge balloons, and reach the finish gate fast. Gold, silver, and bronze pars come from the course itself.
 
-The hook is the ghosts: today's fastest pilots and your own best run fly alongside you in real time. Old posts keep their own course and leaderboard forever, so any day is replayable. Daily leaderboard with "faster than N% of pilots", streaks with user flair, one-tap comment sharing. Logged-out players can fly every course; logging in saves times and ghosts.
+Today's fastest pilots and your own best run fly alongside you as ghosts. Older posts retain their course and leaderboard. Daily results show your rank, streak, and how much of the field you beat. You can fly as a guest or sign in to save your time and ghost and share a result in the comments.
 
 ## How we built it
 
-Devvit Web Interactive Post. The critical decision: **fair times by deterministic replay**. The client sends only the throw vector and the frames where the player pressed or released — the server replays that input through the same simulation (`src/shared/sim.ts`) and records the time it computes. A time on the board is a time that was actually flown, and the same input drives your ghost. React client, Redis for leaderboards/streaks/flair, scheduled daily posting plus a moderator post-on-demand menu item.
+Updraft uses Devvit Web, a TypeScript Canvas client, and Devvit Redis. The client sends the throw vector and the frames where the player pressed or released. The server replays those inputs through the same simulation (`src/shared/sim.ts`) and records the time it computes. The same inputs drive the ghost. A scheduled job posts the daily course, and moderators can post it on demand.
 
 ## Challenges we ran into
 
 - Making a plane feel like a plane in two controls (throw + hold-to-climb): enough physics to reward skill, forgiving enough for a 30-second daily session.
 - Ghost integrity: ghosts must be the actual recorded inputs, or the magic of racing real people is a lie.
-- Course design tooling: hand-tuned courses need a fast iteration loop to hit daily quality.
+- Course generation needs to keep a daily route playable. An autopilot checks a course before the game uses it and sets its par times.
 
 ## Accomplishments we're proud of
 
@@ -32,7 +32,7 @@ Head-to-head ghost challenges in comments, weekly championship courses, communit
 
 ## Built with
 
-`devvit` `devvit-web` `react` `typescript` `redis` `reddit` `canvas`
+`devvit` `devvit-web` `typescript` `redis` `reddit` `canvas`
 
 ## Links
 
@@ -40,5 +40,6 @@ Head-to-head ghost challenges in comments, weekly championship courses, communit
 - Demo subreddit: https://www.reddit.com/r/updraft_daily_dev/
 - Repository: https://github.com/himanshu748/updraft
 - [Published Devpost entry](https://devpost.com/software/updraft-vjakg5)
-- [YouTube demo linked on Devpost](https://youtu.be/KKe-zw4jUCc)
-- [Newer gameplay clip](demo-video.mp4): the par-pilot autopilot flies the local client in offline mode. This clip does not show a saved Reddit leaderboard result.
+- [Original Reddit demo](https://youtu.be/KKe-zw4jUCc)
+- [Local Devvit walkthrough (0:57)](https://youtu.be/-eHnO1w_3ok). A scripted climb reaches the finish and the local server verifies the time. The phone-width replay opens the Nov 21 archived course with its API requests blocked. The walkthrough uses in-memory Redis.
+- [Archived offline gameplay clip](demo-video.mp4). The par pilot completes the course in the offline local client.

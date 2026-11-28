@@ -8,7 +8,8 @@ Updraft is a paper-plane race inside Reddit. Ride thermals, hit boost rings, and
 race your best ghost or the fastest pilots on the day's course.
 
 [Play on Reddit](https://www.reddit.com/r/updraft_daily_dev/) ·
-[Watch the submitted demo](https://youtu.be/KKe-zw4jUCc) ·
+[Original Reddit demo](https://youtu.be/KKe-zw4jUCc) ·
+[Local Devvit walkthrough](https://youtu.be/-eHnO1w_3ok) ·
 [Devpost](https://devpost.com/software/updraft-vjakg5)
 
 ## How to play
