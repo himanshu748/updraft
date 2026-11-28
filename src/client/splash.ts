@@ -2,7 +2,13 @@ import {context, requestExpandedMode} from '@devvit/web/client'
 import type {DayRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {groundAt} from '../shared/course.ts'
-import {countdown, dayKey, formatTime, isDayKey, prettyDay} from '../shared/day.ts'
+import {
+  countdown,
+  dayKey,
+  formatTime,
+  isDayKey,
+  prettyDay,
+} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
 import {fetchDay} from './fetch.ts'
 import {type Camera, drawPlane, ghostColors} from './render.ts'
