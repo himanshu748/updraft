@@ -13,6 +13,20 @@ The preview at http://localhost:5180 uses in-memory Redis and seeded ghosts.
 and server. `npm run playtest` installs a build on a Reddit test community
 using the Devvit CLI. `npm run publish` prepares and uploads a release for review.
 
+## Local playtest results
+
+At commit `4016986`, keyboard and touch emulation each completed five local
+flight attempts through the result screen. The two current-day and two archived
+attempts per viewport returned a server response. The fifth opened the archived
+Nov 21 Lucky Ridge course with all API requests blocked and showed that the
+leaderboard was unavailable. A separate blocked-API check on both viewports
+opened the current-day course from its splash and reached the result screen.
+
+One assisted finish per viewport used drag to launch and a scripted climb.
+The local server replay saved both at 1,157 frames (19.28 seconds).
+`npm test` passed all 65 tests, type checking, lint, and the production build.
+[Local Devvit walkthrough](https://youtu.be/-eHnO1w_3ok)
+
 ## How the race works
 
 Drag back from the plane and release to throw. Hold to pitch up and release to
