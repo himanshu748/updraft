@@ -1,8 +1,8 @@
-import {requestExpandedMode} from '@devvit/web/client'
+import {context, requestExpandedMode} from '@devvit/web/client'
 import type {DayRsp} from '../shared/api.ts'
 import {dailyCourse} from '../shared/bot.ts'
 import {groundAt} from '../shared/course.ts'
-import {countdown, dayKey, formatTime, prettyDay} from '../shared/day.ts'
+import {countdown, dayKey, formatTime, isDayKey, prettyDay} from '../shared/day.ts'
 import {simulate} from '../shared/sim.ts'
 import {fetchDay} from './fetch.ts'
 import {type Camera, drawPlane, ghostColors} from './render.ts'
@@ -16,6 +16,9 @@ const stats = document.getElementById('stats') as HTMLElement
 const countdownEl = document.getElementById('countdown') as HTMLElement
 const podium = document.getElementById('podium') as HTMLElement
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+const postDay = context?.postData?.day
+const initialDay = dayKey()
+const previewDay = isDayKey(postDay) ? postDay : initialDay
 
 startBtn.addEventListener('click', ev => {
   try {
@@ -40,7 +43,7 @@ function paintBackdrop(w: number, h: number): void {
   backdropW = w
   backdropH = h
   const b = backdrop.getContext('2d') as CanvasRenderingContext2D
-  const {course} = dailyCourse(info?.day ?? dayKey())
+  const {course} = dailyCourse(info?.day ?? previewDay)
   const t = course.theme
   const sx = (x: number): number => (x / (course.finishX + 200)) * w
   const sy = (y: number): number => h - (y / 760) * h
@@ -149,6 +152,10 @@ function renderCountdown(): void {
 }
 
 async function init(): Promise<void> {
+  if (previewDay !== initialDay) {
+    title.textContent = `${prettyDay(previewDay)} · ${dailyCourse(previewDay).course.name}`
+    startBtn.textContent = 'Fly this course'
+  }
   renderCountdown()
   renderSplash()
   try {
