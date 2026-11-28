@@ -157,16 +157,23 @@ async function routeDay(): Promise<DayRsp> {
   let me: DayRsp['me'] = null
   let myComment: string | null = null
   if (user) {
-    const frames = await dbBest(day, user)
-    const input = frames === undefined ? undefined : await dbInput(day, user)
-    const rank = await dbRank(day, user)
-    if (frames !== undefined && input && rank) me = {frames, rank, input}
-    const share = await dbShare(day, user).catch(() => {
-      console.warn('comment receipt unavailable')
-      return undefined
-    })
-    if (share && frames !== undefined && share.frames <= frames)
-      myComment = share.url
+    try {
+      const frames = await dbBest(day, user)
+      if (frames !== undefined) {
+        const share = await dbShare(day, user).catch(() => {
+          console.warn('comment receipt unavailable')
+          return undefined
+        })
+        if (share && share.frames <= frames) myComment = share.url
+        const [input, rank] = await Promise.all([
+          dbInput(day, user),
+          dbRank(day, user),
+        ])
+        if (input && rank) me = {frames, rank, input}
+      }
+    } catch (error) {
+      console.warn('personal result unavailable:', error)
+    }
   }
   return {
     day,
