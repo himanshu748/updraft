@@ -217,11 +217,12 @@ function renderBoard(): void {
   if (!rows.length) {
     const empty = document.createElement('li')
     empty.className = 'empty'
-    empty.textContent = info
-      ? 'No times yet. Be the first ghost.'
-      : canSubmit
-        ? 'Leaderboard unavailable. You can still fly.'
-        : 'Leaderboard unavailable. You can still practice.'
+    empty.textContent =
+      info && !info.boardUnavailable
+        ? 'No times yet. Be the first ghost.'
+        : canSubmit
+          ? 'Leaderboard unavailable. You can still fly.'
+          : 'Leaderboard unavailable. You can still practice.'
     hud.board.append(empty)
   }
 }

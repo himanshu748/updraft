@@ -393,10 +393,13 @@ test('a day in the body cannot score a different course', async () => {
 
 test('unexpected failures return a generic error to the player', async t => {
   t.mock.method(console, 'error', () => {})
-  t.mock.method(redis, 'zRange', async () => {
+  t.mock.method(redis, 'zScore', async () => {
     throw new Error('redis diagnostic')
   })
-  const {status, json} = await call<ErrorRsp>(Endpoint.Day)
+  const {status, json} = await call<ErrorRsp>(Endpoint.Share, {
+    user: 'share-error',
+    body: {day: today},
+  })
   assert.equal(status, 500)
   assert.deepEqual(json, {error: 'internal server error', status: 500})
 })
@@ -619,6 +622,29 @@ test('the daily race survives an unavailable previous podium', async t => {
   assert.deepEqual(json.yesterday, [])
   assert.deepEqual(json.me?.input, input)
   assert.ok(json.board.some(row => row.name === user))
+})
+
+test('unavailable current rankings leave the course and personal ghost available', async t => {
+  const user = 'current-rankings-failure'
+  const input = best(today)
+  const frames = simulate(dailyCourse(today).course, input).frames
+  await dbSaveRun(today, user, frames, input)
+  const read = redis.zRange.bind(redis)
+  t.mock.method(console, 'warn', () => {})
+  t.mock.method(redis, 'zRange', async (...args: Parameters<typeof read>) => {
+    if (args[0] === `board:${today}`)
+      throw Error('current rankings unavailable')
+    return read(...args)
+  })
+
+  const {status, json} = await call<DayRsp>(Endpoint.Day, {user})
+  assert.equal(status, 200)
+  assert.equal(json.day, today)
+  assert.deepEqual(json.par, dailyCourse(today).par)
+  assert.equal(json.boardUnavailable, true)
+  assert.deepEqual(json.board, [])
+  assert.deepEqual(json.ghosts, [])
+  assert.deepEqual(json.me?.input, input)
 })
 
 test('a failed player tally does not discard a verified finish', async t => {
