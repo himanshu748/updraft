@@ -27,6 +27,12 @@ The local server replay saved both at 1,157 frames (19.28 seconds).
 `npm test` passed all 65 tests, type checking, lint, and the production build.
 [Local Devvit walkthrough](https://youtu.be/-eHnO1w_3ok)
 
+## Mobile judge check
+
+1. Open the [submitted Nov 21 Lucky Ridge post](https://www.reddit.com/r/updraft_daily_dev/comments/1y1itqc/updraft_nov_21_lucky_ridge_starlit_saturday/) in a narrow mobile browser while signed out. The post should offer the archived course on its splash.
+2. Tap **Throw** and complete a flight. The result should show your finish time. A guest result stays local. Sign in if you want to save a time or ghost to Reddit.
+3. If the inline player is unavailable, use the [local Devvit walkthrough](https://youtu.be/-eHnO1w_3ok) or the preview command above. Those routes use the local server. Track native mobile evidence in [issue #30](https://github.com/himanshu748/updraft/issues/30).
+
 ## How the race works
 
 Drag back from the plane and release to throw. Hold to pitch up and release to
