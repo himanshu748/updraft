@@ -20,6 +20,8 @@ export type DayRsp = {
   flights: number | null
   par: Par
   board: BoardEntry[]
+  /** The board could not be read, so an empty list does not imply no times. */
+  boardUnavailable?: true
   /** The day before's top three, so each post celebrates the last podium. */
   yesterday: BoardEntry[]
   ghosts: Ghost[]

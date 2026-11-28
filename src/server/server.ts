@@ -149,8 +149,11 @@ async function routeDay(): Promise<DayRsp> {
   const today = dayKey()
   const user = context.username ?? null
   const {par} = dailyCourse(day)
-  const board = await dbBoard(day, ghostCount)
-  const ghosts = await dbGhosts(day, board).catch(() => {
+  const board = await dbBoard(day, ghostCount).catch(() => {
+    console.warn('current rankings unavailable')
+    return null
+  })
+  const ghosts = await dbGhosts(day, board ?? []).catch(() => {
     console.warn('ghost replays unavailable')
     return []
   })
@@ -188,7 +191,8 @@ async function routeDay(): Promise<DayRsp> {
       return null
     }),
     par,
-    board: board.slice(0, 10),
+    board: board?.slice(0, 10) ?? [],
+    ...(board === null ? {boardUnavailable: true} : {}),
     yesterday: await dbBoard(addDays(day, -1), 3).catch(() => {
       console.warn('previous podium unavailable')
       return []

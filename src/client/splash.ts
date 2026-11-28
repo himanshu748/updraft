@@ -179,6 +179,7 @@ async function init(): Promise<void> {
     parts.push(
       `fastest ${formatTime(info.board[0].frames)} by u/${info.board[0].name}`,
     )
+  else if (info.boardUnavailable) parts.push('Rankings unavailable')
   if (info.me)
     parts.push(`your best ${formatTime(info.me.frames)} (#${info.me.rank})`)
   const today = info.day === info.today
