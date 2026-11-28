@@ -38,6 +38,7 @@ Head-to-head ghost challenges in comments, weekly championship courses, communit
 
 - App listing: https://developers.reddit.com/apps/updraft-daily
 - Demo subreddit: https://www.reddit.com/r/updraft_daily_dev/
+- [Submitted Reddit post](https://www.reddit.com/r/updraft_daily_dev/comments/1y1itqc/updraft_nov_21_lucky_ridge_starlit_saturday/) · [Mobile judge check](development.md#mobile-judge-check)
 - Repository: https://github.com/himanshu748/updraft
 - [Published Devpost entry](https://devpost.com/software/updraft-vjakg5)
 - [Original Reddit demo](https://youtu.be/KKe-zw4jUCc)
